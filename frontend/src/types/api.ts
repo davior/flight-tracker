@@ -14,6 +14,13 @@ export interface LatLng {
   lon: number;
 }
 
+export interface LiveQueryState {
+  visibleBounds: MapBounds;
+  queryBounds: MapBounds;
+  center: LatLng;
+  isClamped: boolean;
+}
+
 export interface ApiPhoto {
   id: number;
   file_path: string;

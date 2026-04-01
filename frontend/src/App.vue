@@ -28,46 +28,90 @@ const uiStore = useUiStore();
 
 const mapInstance = ref<LeafletMap | null>(null);
 const reporting = ref(false);
+const manualLocationSelecting = ref(false);
 const { schedule } = useDebouncedTask(400);
 
 const selectedLoggedFlight = computed(() => logsStore.byId(uiStore.selectedLogId));
 const modeLabel = computed(() => (uiStore.mode === "live" ? "Filters" : "Time window"));
-const manualLocationActive = computed(() => uiStore.manualLocationOpen && uiStore.view === "map");
+const manualLocationActive = computed(() => uiStore.manualLocationOpen && uiStore.view === "map" && manualLocationSelecting.value);
 const currentViewportCenter = computed(() => mapStore.viewportCenter ?? mapStore.center);
+const locationSettingsDisplayLocation = computed(() => {
+  if (uiStore.locationMode === "auto") {
+    return mapStore.userLocation ?? mapStore.center;
+  }
+  if (manualLocationSelecting.value) {
+    return currentViewportCenter.value;
+  }
+  return mapStore.userLocation ?? currentViewportCenter.value ?? mapStore.center;
+});
 
 function syncWindowActivity(): void {
   flightsStore.setWindowActive(document.visibilityState === "visible" && document.hasFocus());
 }
 
-async function refreshCurrentMode(): Promise<void> {
+async function refreshCurrentMode(reason: "poll" | "viewport" | "manual" = "manual"): Promise<void> {
   if (uiStore.mode === "live") {
-    await flightsStore.refresh();
+    await flightsStore.refresh(reason);
   } else {
     await logsStore.refresh();
   }
 }
 
-function scheduleRefresh(): void {
+function scheduleRefresh(reason: "poll" | "viewport" | "manual" = "manual"): void {
   schedule(() => {
-    void refreshCurrentMode();
+    void refreshCurrentMode(reason);
   });
 }
 
-function openManualLocation(): void {
+function scheduleViewportRefresh(): void {
+  schedule(() => {
+    if (uiStore.mode === "live") {
+      void flightsStore.refresh("viewport");
+      return;
+    }
+    void logsStore.refresh();
+  });
+}
+
+function openLocationSettings(): void {
   if (!mapStore.center) {
     mapStore.setCenter({ lat: -37.8136, lon: 144.9631 });
   }
   uiStore.view = "map";
   uiStore.manualLocationOpen = true;
+  manualLocationSelecting.value = uiStore.locationMode === "manual";
 }
 
-async function handleRecenter(): Promise<void> {
+function closeLocationSettings(): void {
+  uiStore.manualLocationOpen = false;
+  manualLocationSelecting.value = false;
+}
+
+function recenterMapOnLocation(location: { lat: number; lon: number }): void {
+  if (!mapInstance.value) {
+    return;
+  }
+  mapInstance.value.flyTo([location.lat, location.lon], Math.max(mapInstance.value.getZoom(), 12));
+}
+
+async function setLocationMode(mode: "auto" | "manual"): Promise<void> {
+  uiStore.locationMode = mode;
+  if (mode === "manual") {
+    uiStore.view = "map";
+    manualLocationSelecting.value = true;
+    return;
+  }
+
+  manualLocationSelecting.value = false;
+
   try {
-    await mapStore.requestUserLocation();
-    scheduleRefresh();
+    const location = await mapStore.requestUserLocation();
+    recenterMapOnLocation(location);
+    scheduleRefresh("manual");
   } catch (error) {
+    uiStore.locationMode = "manual";
+    manualLocationSelecting.value = true;
     uiStore.showToast(error instanceof Error ? error.message : "Unable to access your location");
-    openManualLocation();
   }
 }
 
@@ -106,24 +150,19 @@ async function handleReportSubmit(payload: { note: string; files: File[] }): Pro
   }
 }
 
-function handleManualLocation(payload: { lat: number; lon: number }): void {
+function handleLocationSettingsSubmit(payload: { lat: number; lon: number }): void {
+  if (uiStore.locationMode === "auto") {
+    closeLocationSettings();
+    return;
+  }
   if (!Number.isFinite(payload.lat) || !Number.isFinite(payload.lon)) {
     uiStore.showToast("Please provide a valid latitude and longitude.");
     return;
   }
   mapStore.setUserLocation({ lat: payload.lat, lon: payload.lon });
-  uiStore.manualLocationOpen = false;
-  scheduleRefresh();
-}
-
-function handleManualLocationUseCenter(): void {
-  if (!currentViewportCenter.value) {
-    uiStore.showToast("Move the map until the red target is over your location.");
-    return;
-  }
-  mapStore.setUserLocation(currentViewportCenter.value);
-  uiStore.manualLocationOpen = false;
-  scheduleRefresh();
+  uiStore.locationMode = "manual";
+  closeLocationSettings();
+  scheduleRefresh("manual");
 }
 
 function handleMapReady(map: LeafletMap): void {
@@ -148,11 +187,16 @@ onMounted(async () => {
   document.addEventListener("visibilitychange", syncWindowActivity);
   try {
     await mapStore.requestUserLocation();
+    uiStore.locationMode = "auto";
   } catch (error) {
+    uiStore.locationMode = "manual";
     mapStore.setCenter({ lat: -37.8136, lon: 144.9631 });
     uiStore.showToast(error instanceof Error ? error.message : "Unable to access your location");
+    openLocationSettings();
   }
-  scheduleRefresh();
+  if (uiStore.mode === "logged") {
+    scheduleRefresh("manual");
+  }
 });
 
 watch(
@@ -162,16 +206,28 @@ watch(
       flightsStore.startPolling();
     } else {
       flightsStore.stopPolling();
+      scheduleRefresh("manual");
     }
-    scheduleRefresh();
   },
   { immediate: true },
 );
 
 watch(
+  () => mapStore.liveQuery,
+  () => {
+    if (uiStore.mode === "live") {
+      scheduleViewportRefresh();
+    }
+  },
+  { deep: true },
+);
+
+watch(
   () => mapStore.query,
   () => {
-    scheduleRefresh();
+    if (uiStore.mode === "logged") {
+      scheduleViewportRefresh();
+    }
   },
   { deep: true },
 );
@@ -203,7 +259,10 @@ onBeforeUnmount(() => {
       :live-flights="flightsStore.sortedFlights"
       :logged-flights="logsStore.sortedFlights"
       :selected-log-id="uiStore.selectedLogId"
-      :manual-location-active="manualLocationActive"
+      :user-location="mapStore.userLocation"
+      :manual-location-selecting="manualLocationActive"
+      :live-coverage-bounds="mapStore.liveQuery?.queryBounds ?? null"
+      :live-coverage-clamped="uiStore.mode === 'live' && Boolean(mapStore.liveQuery?.isClamped)"
       @update-bounds="mapStore.setBounds"
       @report="uiStore.reportFlight = $event"
       @select-log="handleSelectLog"
@@ -229,11 +288,16 @@ onBeforeUnmount(() => {
     <ViewToggle :view="uiStore.view" @update:view="uiStore.view = $event" />
     <FloatingControls
       :mode-label="modeLabel"
-      @center="handleRecenter"
-      @manual="openManualLocation"
-      @refresh="refreshCurrentMode"
+      @location="openLocationSettings"
+      @refresh="refreshCurrentMode('manual')"
       @filters="uiStore.filtersOpen = true"
     />
+    <div
+      v-if="uiStore.mode === 'live' && uiStore.view === 'map' && flightsStore.coverageMessage"
+      class="glass-panel absolute left-1/2 top-4 z-[900] max-w-sm -translate-x-1/2 rounded-2xl px-4 py-3 text-center text-sm font-medium text-[var(--muted)]"
+    >
+      {{ flightsStore.coverageMessage }}
+    </div>
     <ToastStack :message="uiStore.toast" />
 
     <LoggedFlightDetailDrawer
@@ -255,10 +319,12 @@ onBeforeUnmount(() => {
 
     <ManualLocationSheet
       :open="uiStore.manualLocationOpen"
-      :current-center="currentViewportCenter"
-      @close="uiStore.manualLocationOpen = false"
-      @submit="handleManualLocation"
-      @use-center="handleManualLocationUseCenter"
+      :display-location="locationSettingsDisplayLocation"
+      :selecting-on-map="manualLocationSelecting"
+      :location-mode="uiStore.locationMode"
+      @close="closeLocationSettings"
+      @submit="handleLocationSettingsSubmit"
+      @update-location-mode="setLocationMode"
     />
 
     <FiltersSheet

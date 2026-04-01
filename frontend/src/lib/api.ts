@@ -1,4 +1,4 @@
-import type { ApiCreatedLog, ApiLiveFlight, ApiLoggedFlight, CreateLogFields, TimeWindow } from "@/types/api";
+import type { ApiCreatedLog, ApiLiveFlight, ApiLoggedFlight, CreateLogFields, MapBounds, TimeWindow } from "@/types/api";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
@@ -66,29 +66,27 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function fetchLiveFlights(params: {
-  lat: number;
-  lon: number;
-  radiusKm: number;
+  bounds: MapBounds;
 }): Promise<ApiLiveFlight[]> {
   const search = new URLSearchParams({
-    lat: params.lat.toString(),
-    lon: params.lon.toString(),
-    radius_km: params.radiusKm.toFixed(3),
+    north: params.bounds.north.toString(),
+    south: params.bounds.south.toString(),
+    east: params.bounds.east.toString(),
+    west: params.bounds.west.toString(),
   });
   return fetchJson<ApiLiveFlight[]>(`/flights/nearby?${search.toString()}`);
 }
 
 export async function fetchLoggedFlights(params: {
-  lat: number;
-  lon: number;
-  radiusKm: number;
+  bounds: MapBounds;
   timeWindow: TimeWindow;
   viewerUuid: string;
 }): Promise<ApiLoggedFlight[]> {
   const search = new URLSearchParams({
-    lat: params.lat.toString(),
-    lon: params.lon.toString(),
-    radius_km: params.radiusKm.toFixed(3),
+    north: params.bounds.north.toString(),
+    south: params.bounds.south.toString(),
+    east: params.bounds.east.toString(),
+    west: params.bounds.west.toString(),
     time_window: params.timeWindow,
     viewer_uuid: params.viewerUuid,
   });

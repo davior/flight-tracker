@@ -67,6 +67,36 @@ vi.mock("@vue-leaflet/vue-leaflet", () => ({
       return () => h("div", { "data-testid": "tile-layer" });
     },
   }),
+  LMarker: defineComponent({
+    name: "LMarker",
+    props: {
+      latLng: {
+        type: Array,
+        required: true,
+      },
+    },
+    setup(_, { slots }) {
+      return () => h("div", { "data-testid": "leaflet-marker" }, slots.default?.());
+    },
+  }),
+  LRectangle: defineComponent({
+    name: "LRectangle",
+    props: {
+      bounds: {
+        type: Array,
+        required: true,
+      },
+    },
+    setup() {
+      return () => h("div", { "data-testid": "leaflet-rectangle" });
+    },
+  }),
+  LIcon: defineComponent({
+    name: "LIcon",
+    setup(_, { slots }) {
+      return () => h("div", { "data-testid": "leaflet-icon" }, slots.default?.());
+    },
+  }),
 }));
 
 import MapShell from "@/components/MapShell.vue";
@@ -92,7 +122,10 @@ describe("MapShell", () => {
         liveFlights: [],
         loggedFlights: [],
         selectedLogId: null,
-        manualLocationActive: false,
+        userLocation: null,
+        manualLocationSelecting: false,
+        liveCoverageBounds: null,
+        liveCoverageClamped: false,
       },
     });
 
@@ -128,7 +161,10 @@ describe("MapShell", () => {
         liveFlights: [],
         loggedFlights: [],
         selectedLogId: null,
-        manualLocationActive: false,
+        userLocation: null,
+        manualLocationSelecting: false,
+        liveCoverageBounds: null,
+        liveCoverageClamped: false,
       },
     });
 
@@ -176,7 +212,10 @@ describe("MapShell", () => {
         liveFlights: [],
         loggedFlights: [],
         selectedLogId: null,
-        manualLocationActive: false,
+        userLocation: null,
+        manualLocationSelecting: false,
+        liveCoverageBounds: null,
+        liveCoverageClamped: false,
       },
     });
 
@@ -205,7 +244,7 @@ describe("MapShell", () => {
     expect(setView).not.toHaveBeenCalled();
   });
 
-  it("shows the map target overlay while manual location mode is active", () => {
+  it("shows the map target overlay while manual selection is active", () => {
     const wrapper = mount(MapShell, {
       props: {
         center: { lat: -37.8136, lon: 144.9631 },
@@ -214,10 +253,55 @@ describe("MapShell", () => {
         liveFlights: [],
         loggedFlights: [],
         selectedLogId: null,
-        manualLocationActive: true,
+        userLocation: null,
+        manualLocationSelecting: true,
+        liveCoverageBounds: null,
+        liveCoverageClamped: false,
       },
     });
 
-    expect(wrapper.find(".manual-location-target").exists()).toBe(true);
+    expect(wrapper.find(".location-target--selection").exists()).toBe(true);
+  });
+
+  it("renders a persistent user location marker without enabling selection mode", () => {
+    const wrapper = mount(MapShell, {
+      props: {
+        center: { lat: -37.8136, lon: 144.9631 },
+        zoom: 12,
+        mode: "live",
+        liveFlights: [],
+        loggedFlights: [],
+        selectedLogId: null,
+        userLocation: { lat: -37.8136, lon: 144.9631 },
+        manualLocationSelecting: false,
+        liveCoverageBounds: null,
+        liveCoverageClamped: false,
+      },
+    });
+
+    expect(wrapper.getComponent({ name: "LMarker" }).props("latLng")).toEqual([-37.8136, 144.9631]);
+    expect(wrapper.find(".location-target--marker").exists()).toBe(true);
+  });
+
+  it("renders a live coverage rectangle when the visible map is clamped", () => {
+    const wrapper = mount(MapShell, {
+      props: {
+        center: { lat: -37.8136, lon: 144.9631 },
+        zoom: 12,
+        mode: "live",
+        liveFlights: [],
+        loggedFlights: [],
+        selectedLogId: null,
+        userLocation: null,
+        manualLocationSelecting: false,
+        liveCoverageBounds: { north: -37.7, south: -37.9, east: 145.1, west: 144.8 },
+        liveCoverageClamped: true,
+      },
+    });
+
+    expect(wrapper.getComponent({ name: "LRectangle" }).props("bounds")).toEqual([
+      [-37.9, 144.8],
+      [-37.7, 145.1],
+    ]);
   });
 });

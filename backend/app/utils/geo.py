@@ -20,6 +20,21 @@ def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) ->
     return EARTH_RADIUS_KM * c
 
 
+def center_from_bounds(north: float, south: float, east: float, west: float) -> tuple[float, float]:
+    return ((north + south) / 2, (east + west) / 2)
+
+
+def radius_from_bounds(north: float, south: float, east: float, west: float) -> float:
+    center_lat, center_lon = center_from_bounds(north, south, east, west)
+    corners = (
+        (north, east),
+        (north, west),
+        (south, east),
+        (south, west),
+    )
+    return max(haversine_distance_km(center_lat, center_lon, corner_lat, corner_lon) for corner_lat, corner_lon in corners)
+
+
 def bounding_box(lat: float, lon: float, radius_km: float) -> tuple[float, float, float, float]:
     lat_delta = radius_km / 111.32
     cos_lat = max(abs(math.cos(math.radians(lat))), 0.01)

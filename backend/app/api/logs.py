@@ -23,7 +23,7 @@ from app.schemas import (
 )
 from app.services.aircraft_enrichment import AircraftEnrichmentService
 from app.services.image_storage import ImageStorageError, ImageStorageService, UnsupportedImageError
-from app.utils.geo import haversine_distance_km
+from app.utils.geo import center_from_bounds, haversine_distance_km, radius_from_bounds
 
 
 router = APIRouter(prefix="/logs", tags=["logs"])
@@ -122,15 +122,24 @@ async def create_log(
 
 @router.get("/nearby", response_model=list[LoggedFlightNearbyResponse])
 def get_nearby_logs(
-    lat: float,
-    lon: float,
-    radius_km: float = Query(...),
+    north: float = Query(...),
+    south: float = Query(...),
+    east: float = Query(...),
+    west: float = Query(...),
     time_window: str = Query("1d"),
     viewer_uuid: str | None = Query(None),
+    settings: Settings = Depends(get_app_settings),
     db_session: Session = Depends(get_db),
 ) -> list[LoggedFlightNearbyResponse]:
-    if radius_km <= 0:
-        raise HTTPException(status_code=422, detail="radius_km must be greater than 0")
+    if south >= north:
+        raise HTTPException(status_code=422, detail="south must be less than north")
+    if west >= east:
+        raise HTTPException(status_code=422, detail="west must be less than east")
+    if radius_from_bounds(north, south, east, west) > settings.max_nearby_radius_km:
+        raise HTTPException(
+            status_code=422,
+            detail=f"requested bounds exceed the maximum nearby radius of {settings.max_nearby_radius_km} km",
+        )
 
     try:
         window = parse_time_window(time_window)
@@ -144,6 +153,7 @@ def get_nearby_logs(
         .where(FlightLog.created_at >= cutoff)
     ).scalars()
     log_items = list(logs)
+    center_lat, center_lon = center_from_bounds(north, south, east, west)
     icao24s = sorted({log.icao24 for log in log_items})
     registry_map: dict[str, AircraftRegistry] = {}
     if icao24s:
@@ -157,9 +167,9 @@ def get_nearby_logs(
         coordinates = resolve_log_coordinates(log)
         if coordinates is None:
             continue
-        distance_km = round(haversine_distance_km(lat, lon, coordinates[0], coordinates[1]), 3)
-        if distance_km > radius_km:
+        if not (south <= coordinates[0] <= north and west <= coordinates[1] <= east):
             continue
+        distance_km = round(haversine_distance_km(center_lat, center_lon, coordinates[0], coordinates[1]), 3)
         results.append(
             serialize_nearby_log(
                 log=log,

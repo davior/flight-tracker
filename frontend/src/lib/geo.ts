@@ -1,6 +1,10 @@
 import type { LatLng, MapBounds } from "@/types/api";
 
 const EARTH_RADIUS_KM = 6371;
+const GEO_EPSILON = 0.000001;
+const CLAMP_RADIUS_MARGIN_KM = 0.1;
+
+export const MAX_NEARBY_RADIUS_KM = 100;
 
 export function haversineKm(from: LatLng, to: LatLng): number {
   const lat1 = (from.lat * Math.PI) / 180;
@@ -32,6 +36,63 @@ export function deriveRadiusFromBounds(bounds: MapBounds): number {
   ];
 
   return corners.reduce((max, corner) => Math.max(max, haversineKm(center, corner)), 1);
+}
+
+export function boundsEqual(left: MapBounds, right: MapBounds, epsilon = GEO_EPSILON): boolean {
+  return (
+    Math.abs(left.north - right.north) <= epsilon &&
+    Math.abs(left.south - right.south) <= epsilon &&
+    Math.abs(left.east - right.east) <= epsilon &&
+    Math.abs(left.west - right.west) <= epsilon
+  );
+}
+
+function buildCenteredSquareBounds(center: LatLng, halfSpan: number): MapBounds {
+  return {
+    north: Math.min(90, center.lat + halfSpan),
+    south: Math.max(-90, center.lat - halfSpan),
+    east: Math.min(180, center.lon + halfSpan),
+    west: Math.max(-180, center.lon - halfSpan),
+  };
+}
+
+export function fitBoundsToMaxRadius(
+  bounds: MapBounds,
+  maxRadiusKm: number,
+): { bounds: MapBounds; isClamped: boolean } {
+  const safeRadius = Math.max(maxRadiusKm - CLAMP_RADIUS_MARGIN_KM, 0.1);
+  if (deriveRadiusFromBounds(bounds) <= safeRadius) {
+    return { bounds, isClamped: false };
+  }
+
+  const center = deriveCenterFromBounds(bounds);
+  const maxHalfSpan = Math.min(
+    bounds.north - center.lat,
+    center.lat - bounds.south,
+    bounds.east - center.lon,
+    center.lon - bounds.west,
+    90 - center.lat,
+    center.lat + 90,
+    180 - center.lon,
+    center.lon + 180,
+  );
+
+  let low = 0;
+  let high = Math.max(maxHalfSpan, GEO_EPSILON);
+  let best = buildCenteredSquareBounds(center, low);
+
+  for (let index = 0; index < 32; index += 1) {
+    const halfSpan = (low + high) / 2;
+    const candidate = buildCenteredSquareBounds(center, halfSpan);
+    if (deriveRadiusFromBounds(candidate) <= safeRadius) {
+      best = candidate;
+      low = halfSpan;
+    } else {
+      high = halfSpan;
+    }
+  }
+
+  return { bounds: best, isClamped: !boundsEqual(best, bounds) };
 }
 
 export function resolveLoggedFlightPoint(flight: {

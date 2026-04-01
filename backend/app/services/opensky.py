@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 from app.config import Settings
-from app.utils.geo import bounding_box, haversine_distance_km
+from app.utils.geo import center_from_bounds, haversine_distance_km
 
 
 TOKEN_URL = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
@@ -43,20 +43,20 @@ class OpenSkyClient:
     def close(self) -> None:
         self.session.close()
 
-    def get_nearby_flights(self, lat: float, lon: float, radius_km: float) -> list[NearbyFlight]:
-        min_lat, min_lon, max_lat, max_lon = bounding_box(lat, lon, radius_km)
+    def get_flights_in_bounds(self, north: float, south: float, east: float, west: float) -> list[NearbyFlight]:
+        center_lat, center_lon = center_from_bounds(north, south, east, west)
         payload = self._fetch_states(
             {
-                "lamin": min_lat,
-                "lomin": min_lon,
-                "lamax": max_lat,
-                "lomax": max_lon,
+                "lamin": south,
+                "lomin": west,
+                "lamax": north,
+                "lomax": east,
             }
         )
 
         flights: list[NearbyFlight] = []
         for state in payload.get("states") or []:
-            parsed = self._parse_state(state, lat, lon, radius_km)
+            parsed = self._parse_state(state, center_lat, center_lon)
             if parsed is not None:
                 flights.append(parsed)
 
@@ -148,7 +148,6 @@ class OpenSkyClient:
         state: list,
         origin_lat: float,
         origin_lon: float,
-        radius_km: float,
     ) -> NearbyFlight | None:
         if len(state) < 17:
             return None
@@ -159,8 +158,6 @@ class OpenSkyClient:
             return None
 
         distance = haversine_distance_km(origin_lat, origin_lon, latitude, longitude)
-        if distance > radius_km:
-            return None
 
         callsign = state[1].strip() if isinstance(state[1], str) else None
         baro_altitude = state[7]

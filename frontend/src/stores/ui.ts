@@ -3,6 +3,8 @@ import { ref } from "vue";
 
 import type { ApiLiveFlight, AppMode, AppView, TimeWindow } from "@/types/api";
 
+export type LocationMode = "auto" | "manual";
+
 export const useUiStore = defineStore("ui", () => {
   const mode = ref<AppMode>("live");
   const view = ref<AppView>("map");
@@ -10,6 +12,7 @@ export const useUiStore = defineStore("ui", () => {
   const selectedLogId = ref<number | null>(null);
   const filtersOpen = ref(false);
   const manualLocationOpen = ref(false);
+  const locationMode = ref<LocationMode>("auto");
   const toast = ref<string | null>(null);
   const timeWindow = ref<TimeWindow>("1d");
 
@@ -24,6 +27,7 @@ export const useUiStore = defineStore("ui", () => {
 
   return {
     filtersOpen,
+    locationMode,
     manualLocationOpen,
     mode,
     reportFlight,

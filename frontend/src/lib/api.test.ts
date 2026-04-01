@@ -1,4 +1,4 @@
-import { ApiError, fetchLiveFlights } from "@/lib/api";
+import { ApiError, fetchLiveFlights, fetchLoggedFlights } from "@/lib/api";
 
 describe("fetchLiveFlights", () => {
   afterEach(() => {
@@ -25,9 +25,12 @@ describe("fetchLiveFlights", () => {
 
     await expect(
       fetchLiveFlights({
-        lat: -37.8136,
-        lon: 144.9631,
-        radiusKm: 20,
+        bounds: {
+          north: -37.7,
+          south: -37.9,
+          east: 145.1,
+          west: 144.8,
+        },
       }),
     ).rejects.toMatchObject<ApiError>({
       status: 502,
@@ -51,13 +54,74 @@ describe("fetchLiveFlights", () => {
 
     await expect(
       fetchLiveFlights({
-        lat: -37.8136,
-        lon: 144.9631,
-        radiusKm: 20,
+        bounds: {
+          north: -37.7,
+          south: -37.9,
+          east: 145.1,
+          west: 144.8,
+        },
       }),
     ).rejects.toMatchObject<ApiError>({
       status: 502,
       message: "Bad Gateway",
     });
+  });
+
+  it("encodes map bounds for live-flight requests", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    await fetchLiveFlights({
+      bounds: {
+        north: -37.7,
+        south: -37.9,
+        east: 145.1,
+        west: 144.8,
+      },
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/flights/nearby?north=-37.7&south=-37.9&east=145.1&west=144.8",
+      expect.any(Object),
+    );
+  });
+});
+
+describe("fetchLoggedFlights", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("encodes map bounds for logged-flight requests", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    await fetchLoggedFlights({
+      bounds: {
+        north: -37.7,
+        south: -37.9,
+        east: 145.1,
+        west: 144.8,
+      },
+      timeWindow: "1d",
+      viewerUuid: "viewer-1",
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/logs/nearby?north=-37.7&south=-37.9&east=145.1&west=144.8&time_window=1d&viewer_uuid=viewer-1",
+      expect.any(Object),
+    );
   });
 });

@@ -9,6 +9,7 @@ from app.dependencies import get_app_settings, get_opensky_client
 from app.models import AircraftRegistry
 from app.schemas import NearbyFlightResponse, build_display_type
 from app.services.opensky import OpenSkyClient, OpenSkyError
+from app.utils.geo import radius_from_bounds
 
 
 router = APIRouter(prefix="/flights", tags=["flights"])
@@ -16,21 +17,29 @@ router = APIRouter(prefix="/flights", tags=["flights"])
 
 @router.get("/nearby", response_model=list[NearbyFlightResponse])
 def get_nearby_flights(
-    lat: float = Query(...),
-    lon: float = Query(...),
-    radius_km: float = Query(20.0, gt=0),
+    north: float = Query(...),
+    south: float = Query(...),
+    east: float = Query(...),
+    west: float = Query(...),
     settings=Depends(get_app_settings),
     opensky_client: OpenSkyClient = Depends(get_opensky_client),
     db_session: Session = Depends(get_db),
 ) -> list[NearbyFlightResponse]:
-    if radius_km > settings.max_nearby_radius_km:
+    if south >= north:
         raise HTTPException(
             status_code=422,
-            detail=f"radius_km must be less than or equal to {settings.max_nearby_radius_km}",
+            detail="south must be less than north",
+        )
+    if west >= east:
+        raise HTTPException(status_code=422, detail="west must be less than east")
+    if radius_from_bounds(north, south, east, west) > settings.max_nearby_radius_km:
+        raise HTTPException(
+            status_code=422,
+            detail=f"requested bounds exceed the maximum nearby radius of {settings.max_nearby_radius_km} km",
         )
 
     try:
-        flights = opensky_client.get_nearby_flights(lat=lat, lon=lon, radius_km=radius_km)
+        flights = opensky_client.get_flights_in_bounds(north=north, south=south, east=east, west=west)
     except OpenSkyError as exc:
         raise HTTPException(
             status_code=502,

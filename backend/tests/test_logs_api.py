@@ -229,11 +229,13 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
     db_session.commit()
 
     results = get_nearby_logs(
-        lat=-37.8136,
-        lon=144.9631,
-        radius_km=20,
+        north=-37.7,
+        south=-37.9,
+        east=145.1,
+        west=144.8,
         time_window="1d",
         viewer_uuid="viewer-1",
+        settings=settings,
         db_session=db_session,
     )
 
@@ -241,7 +243,54 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
     assert results[0].is_owner is True
     assert results[0].display_type == "Airbus A320-232"
     assert results[0].photos[0].url == f"/photos/{results[0].photos[0].id}"
+    assert results[0].distance_km > 0
 
+    db_session.close()
+
+
+def test_get_nearby_logs_excludes_points_outside_bounds(settings):
+    db_session = make_db_session(settings)
+    db_session.add(
+        FlightLog(
+            icao24="abc123",
+            aircraft_latitude=-37.5,
+            aircraft_longitude=145.4,
+        )
+    )
+    db_session.commit()
+
+    results = get_nearby_logs(
+        north=-37.7,
+        south=-37.9,
+        east=145.1,
+        west=144.8,
+        time_window="1d",
+        viewer_uuid="viewer-1",
+        settings=settings,
+        db_session=db_session,
+    )
+
+    assert results == []
+    db_session.close()
+
+
+def test_get_nearby_logs_rejects_invalid_bounds(settings):
+    db_session = make_db_session(settings)
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_nearby_logs(
+            north=-37.9,
+            south=-37.7,
+            east=145.1,
+            west=144.8,
+            time_window="1d",
+            viewer_uuid="viewer-1",
+            settings=settings,
+            db_session=db_session,
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "south must be less than north"
     db_session.close()
 
 

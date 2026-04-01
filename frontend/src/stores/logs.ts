@@ -2,11 +2,14 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import { fetchLoggedFlights } from "@/lib/api";
+import { deriveRadiusFromBounds } from "@/lib/geo";
 import { sortLoggedFlightsNearestFirst } from "@/lib/logs";
 import type { ApiLoggedFlight } from "@/types/api";
 import { useIdentityStore } from "./identity";
 import { useMapStore } from "./map";
 import { useUiStore } from "./ui";
+
+const MAX_QUERY_RADIUS_KM = 100;
 
 export const useLogsStore = defineStore("logs", () => {
   const loggedFlights = ref<ApiLoggedFlight[]>([]);
@@ -27,14 +30,16 @@ export const useLogsStore = defineStore("logs", () => {
     if (!query) {
       return;
     }
+    if (deriveRadiusFromBounds(query.bounds) > MAX_QUERY_RADIUS_KM) {
+      error.value = `Zoom in to load nearby logs within ${MAX_QUERY_RADIUS_KM} km.`;
+      return;
+    }
 
     isLoading.value = true;
     error.value = null;
     try {
       loggedFlights.value = await fetchLoggedFlights({
-        lat: query.center.lat,
-        lon: query.center.lon,
-        radiusKm: query.radiusKm,
+        bounds: query.bounds,
         timeWindow: uiStore.timeWindow,
         viewerUuid: identityStore.ensureIdentity(),
       });

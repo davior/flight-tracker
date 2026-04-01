@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 from dataclasses import dataclass
 
 import pytest
@@ -35,8 +34,8 @@ class FakeOpenSkyClient:
         self.error = error
         self.calls = []
 
-    def get_nearby_flights(self, lat: float, lon: float, radius_km: float):
-        self.calls.append({"lat": lat, "lon": lon, "radius_km": radius_km})
+    def get_flights_in_bounds(self, north: float, south: float, east: float, west: float):
+        self.calls.append({"north": north, "south": south, "east": east, "west": west})
         if self.error:
             raise self.error
         return self.flights
@@ -49,12 +48,7 @@ def make_db_session() -> Session:
     return session_factory()
 
 
-def test_nearby_flights_uses_default_radius():
-    radius_default = inspect.signature(get_nearby_flights).parameters["radius_km"].default
-    assert radius_default.default == 20.0
-
-
-def test_nearby_flights_accepts_custom_radius():
+def test_nearby_flights_accepts_bounds():
     fake_client = FakeOpenSkyClient(
         flights=[
             FakeFlight(
@@ -86,15 +80,16 @@ def test_nearby_flights_accepts_custom_radius():
     db_session.commit()
 
     response = get_nearby_flights(
-        lat=-37.81,
-        lon=144.96,
-        radius_km=50.0,
+        north=-37.7,
+        south=-37.9,
+        east=145.1,
+        west=144.8,
         settings=settings,
         opensky_client=fake_client,
         db_session=db_session,
     )
 
-    assert fake_client.calls == [{"lat": -37.81, "lon": 144.96, "radius_km": 50.0}]
+    assert fake_client.calls == [{"north": -37.7, "south": -37.9, "east": 145.1, "west": 144.8}]
     assert response[0].icao24 == "abc123"
     assert response[0].display_type == "Airbus A320-232"
     db_session.close()
@@ -122,9 +117,10 @@ def test_nearby_flights_returns_distance_filtered_results():
     db_session = make_db_session()
 
     response = get_nearby_flights(
-        lat=-37.81,
-        lon=144.96,
-        radius_km=20.0,
+        north=-37.7,
+        south=-37.9,
+        east=145.1,
+        west=144.8,
         settings=settings,
         opensky_client=fake_client,
         db_session=db_session,
@@ -141,9 +137,10 @@ def test_nearby_flights_returns_502_when_opensky_fails():
 
     with pytest.raises(HTTPException) as exc_info:
         get_nearby_flights(
-            lat=-37.81,
-            lon=144.96,
-            radius_km=20.0,
+            north=-37.7,
+            south=-37.9,
+            east=145.1,
+            west=144.8,
             settings=settings,
             opensky_client=FakeOpenSkyClient(error=OpenSkyError("rate limited")),
             db_session=db_session,
@@ -151,4 +148,44 @@ def test_nearby_flights_returns_502_when_opensky_fails():
 
     assert exc_info.value.status_code == 502
     assert exc_info.value.detail == {"code": "opensky_unavailable", "message": "rate limited"}
+    db_session.close()
+
+
+def test_nearby_flights_rejects_invalid_bounds():
+    settings = Settings()
+    db_session = make_db_session()
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_nearby_flights(
+            north=-37.9,
+            south=-37.7,
+            east=145.1,
+            west=144.8,
+            settings=settings,
+            opensky_client=FakeOpenSkyClient(),
+            db_session=db_session,
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "south must be less than north"
+    db_session.close()
+
+
+def test_nearby_flights_rejects_oversized_bounds():
+    settings = Settings(max_nearby_radius_km=100)
+    db_session = make_db_session()
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_nearby_flights(
+            north=85,
+            south=-85,
+            east=179,
+            west=-179,
+            settings=settings,
+            opensky_client=FakeOpenSkyClient(),
+            db_session=db_session,
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "requested bounds exceed the maximum nearby radius of 100 km"
     db_session.close()

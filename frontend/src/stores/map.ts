@@ -1,10 +1,8 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import { deriveCenterFromBounds, deriveRadiusFromBounds } from "@/lib/geo";
-import type { LatLng, MapBounds } from "@/types/api";
-
-const MAX_QUERY_RADIUS_KM = 100;
+import { MAX_NEARBY_RADIUS_KM, deriveCenterFromBounds, fitBoundsToMaxRadius } from "@/lib/geo";
+import type { LatLng, LiveQueryState, MapBounds } from "@/types/api";
 
 export const useMapStore = defineStore("map", () => {
   const center = ref<LatLng | null>(null);
@@ -14,14 +12,19 @@ export const useMapStore = defineStore("map", () => {
   const COORDINATE_EPSILON = 0.00001;
   const viewportCenter = computed(() => (bounds.value ? deriveCenterFromBounds(bounds.value) : center.value));
 
-  const query = computed(() => {
-    if (viewportCenter.value) {
-      return {
-        center: viewportCenter.value,
-        radiusKm: Math.min(bounds.value ? deriveRadiusFromBounds(bounds.value) : 20, MAX_QUERY_RADIUS_KM),
-      };
+  const query = computed(() => (bounds.value && viewportCenter.value ? { bounds: bounds.value, center: viewportCenter.value } : null));
+  const liveQuery = computed<LiveQueryState | null>(() => {
+    if (!bounds.value || !viewportCenter.value) {
+      return null;
     }
-    return null;
+
+    const { bounds: queryBounds, isClamped } = fitBoundsToMaxRadius(bounds.value, MAX_NEARBY_RADIUS_KM);
+    return {
+      visibleBounds: bounds.value,
+      queryBounds,
+      center: viewportCenter.value,
+      isClamped,
+    };
   });
 
   function setCenter(next: LatLng): void {
@@ -60,7 +63,7 @@ export const useMapStore = defineStore("map", () => {
         return;
       }
       if (!window.isSecureContext) {
-        reject(new Error("Location access requires HTTPS or localhost. Use Manual to set map center."));
+        reject(new Error("Location access requires HTTPS or localhost. Use Location Settings to set your location."));
         return;
       }
 
@@ -75,7 +78,7 @@ export const useMapStore = defineStore("map", () => {
         },
         (error) => {
           if (error.code === error.PERMISSION_DENIED) {
-            reject(new Error("Location permission was denied. Use Manual to set map center."));
+            reject(new Error("Location permission was denied. Use Location Settings to set your location."));
             return;
           }
           reject(new Error("Unable to access your location"));
@@ -91,6 +94,7 @@ export const useMapStore = defineStore("map", () => {
   return {
     bounds,
     center,
+    liveQuery,
     query,
     userLocation,
     viewportCenter,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
+import { LIcon, LMap, LMarker, LRectangle, LTileLayer } from "@vue-leaflet/vue-leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import { computed, nextTick, ref, watch } from "vue";
 
@@ -14,7 +14,10 @@ const props = defineProps<{
   liveFlights: ApiLiveFlight[];
   loggedFlights: ApiLoggedFlight[];
   selectedLogId: number | null;
-  manualLocationActive: boolean;
+  userLocation: LatLng | null;
+  manualLocationSelecting: boolean;
+  liveCoverageBounds: MapBounds | null;
+  liveCoverageClamped: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -29,6 +32,16 @@ const mapCenter = computed<[number, number]>(() => [
   props.center?.lat ?? -37.8136,
   props.center?.lon ?? 144.9631,
 ]);
+const coverageBounds = computed<[[number, number], [number, number]] | null>(() => {
+  if (!props.liveCoverageBounds) {
+    return null;
+  }
+
+  return [
+    [props.liveCoverageBounds.south, props.liveCoverageBounds.west],
+    [props.liveCoverageBounds.north, props.liveCoverageBounds.east],
+  ];
+});
 const CENTER_EPSILON = 0.00001;
 
 function emitBounds(map?: LeafletMap): void {
@@ -108,6 +121,27 @@ watch(
         name="OpenStreetMap"
         attribution="&copy; OpenStreetMap contributors"
       />
+      <LRectangle
+        v-if="mode === 'live' && liveCoverageClamped && coverageBounds"
+        :bounds="coverageBounds"
+        :color="'#1d7a5f'"
+        :weight="2"
+        :dash-array="'6 4'"
+        :fill="true"
+        :fill-opacity="0.08"
+      />
+      <LMarker
+        v-if="userLocation"
+        :lat-lng="[userLocation.lat, userLocation.lon]"
+        :interactive="false"
+      >
+        <LIcon :icon-size="[42, 42]" :icon-anchor="[21, 21]" class-name="user-location-marker">
+          <div class="location-target location-target--marker">
+            <div class="location-target__ring"></div>
+            <div class="location-target__dot"></div>
+          </div>
+        </LIcon>
+      </LMarker>
       <LiveFlightMarkers
         v-if="mode === 'live'"
         :flights="liveFlights"
@@ -120,11 +154,11 @@ watch(
         @open="$emit('selectLog', $event)"
       />
     </LMap>
-    <div v-if="manualLocationActive" class="pointer-events-none absolute inset-0 z-[850]">
+    <div v-if="manualLocationSelecting" class="pointer-events-none absolute inset-0 z-[850]">
       <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <div class="manual-location-target">
-          <div class="manual-location-target__ring"></div>
-          <div class="manual-location-target__dot"></div>
+        <div class="location-target location-target--selection">
+          <div class="location-target__ring"></div>
+          <div class="location-target__dot"></div>
         </div>
       </div>
     </div>

@@ -8,6 +8,8 @@ import { useMapStore } from "./map";
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const RATE_LIMIT_BACKOFF_STEPS_MS = [60_000, 120_000, 300_000, 600_000] as const;
 
+type RefreshReason = "poll" | "viewport" | "manual";
+
 export const useFlightsStore = defineStore("flights", () => {
   const liveFlights = ref<ApiLiveFlight[]>([]);
   const isLoading = ref(false);
@@ -19,10 +21,17 @@ export const useFlightsStore = defineStore("flights", () => {
   const nextAllowedPollAt = ref<number | null>(null);
   const lastRateLimitAt = ref<number | null>(null);
   let activeRequest: Promise<void> | null = null;
+  let queuedRefreshReason: RefreshReason | null = null;
 
   const sortedFlights = computed(() =>
     [...liveFlights.value].sort((left, right) => left.distance_km - right.distance_km),
   );
+  const coverageMessage = computed(() => {
+    const mapStore = useMapStore();
+    return mapStore.liveQuery?.isClamped
+      ? "Showing live flights for the highlighted area. Zoom in to cover more of the visible map."
+      : null;
+  });
 
   function clearPollingTimer(): void {
     if (pollingHandle.value !== null) {
@@ -41,6 +50,10 @@ export const useFlightsStore = defineStore("flights", () => {
     return Date.now() >= nextAllowedPollAt.value;
   }
 
+  function isBackoffExpired(): boolean {
+    return nextAllowedPollAt.value === null || Date.now() >= nextAllowedPollAt.value;
+  }
+
   function scheduleNextPoll(delayMs = DEFAULT_POLL_INTERVAL_MS): void {
     clearPollingTimer();
     if (!pollingEnabled.value || !isWindowActive.value) {
@@ -52,7 +65,7 @@ export const useFlightsStore = defineStore("flights", () => {
 
     pollingHandle.value = window.setTimeout(() => {
       pollingHandle.value = null;
-      void refresh();
+      void refresh("poll");
     }, waitMs);
   }
 
@@ -83,17 +96,38 @@ export const useFlightsStore = defineStore("flights", () => {
     nextAllowedPollAt.value = Date.now() + RATE_LIMIT_BACKOFF_STEPS_MS[backoffIndex];
   }
 
-  async function refresh(): Promise<void> {
+  function canRefresh(reason: RefreshReason): boolean {
+    if (!isWindowActive.value) {
+      return false;
+    }
+    if (reason === "poll") {
+      return shouldPollNow();
+    }
+    return isBackoffExpired();
+  }
+
+  function queueRefresh(reason: RefreshReason): void {
+    if (queuedRefreshReason === "manual") {
+      return;
+    }
+    if (queuedRefreshReason === "viewport" && reason === "poll") {
+      return;
+    }
+    queuedRefreshReason = reason;
+  }
+
+  async function refresh(reason: RefreshReason = "manual"): Promise<void> {
     if (activeRequest) {
+      queueRefresh(reason);
       return activeRequest;
     }
 
     const mapStore = useMapStore();
-    if (!mapStore.query || !shouldPollNow()) {
+    if (!mapStore.liveQuery || !canRefresh(reason)) {
       return;
     }
 
-    const query = mapStore.query;
+    const query = mapStore.liveQuery;
     if (!query) {
       return;
     }
@@ -103,9 +137,7 @@ export const useFlightsStore = defineStore("flights", () => {
       error.value = null;
       try {
         liveFlights.value = await fetchLiveFlights({
-          lat: query.center.lat,
-          lon: query.center.lon,
-          radiusKm: query.radiusKm,
+          bounds: query.queryBounds,
         });
         resetRateLimitBackoff();
         if (pollingEnabled.value && isWindowActive.value) {
@@ -124,6 +156,11 @@ export const useFlightsStore = defineStore("flights", () => {
       } finally {
         isLoading.value = false;
         activeRequest = null;
+        if (queuedRefreshReason) {
+          const nextReason = queuedRefreshReason;
+          queuedRefreshReason = null;
+          void refresh(nextReason);
+        }
       }
     })();
 
@@ -156,6 +193,7 @@ export const useFlightsStore = defineStore("flights", () => {
 
   return {
     consecutiveRateLimitFailures,
+    coverageMessage,
     error,
     isLoading,
     isWindowActive,
