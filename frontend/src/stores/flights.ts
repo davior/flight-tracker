@@ -29,7 +29,7 @@ export const useFlightsStore = defineStore("flights", () => {
   const coverageMessage = computed(() => {
     const mapStore = useMapStore();
     return mapStore.liveQuery?.isClamped
-      ? "Showing live flights for the highlighted area. Zoom in to cover more of the visible map."
+      ? "Showing live flights for the highlighted area. Visible coverage is limited to 500 km."
       : null;
   });
 

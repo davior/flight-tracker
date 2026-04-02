@@ -82,3 +82,11 @@ class AircraftType(Base):
     manufacturer: Mapped[str | None] = mapped_column(String(128))
     model: Mapped[str | None] = mapped_column(String(128))
     category: Mapped[str | None] = mapped_column(String(16))
+
+
+class AircraftCategory(Base):
+    __tablename__ = "aircraft_categories"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    label: Mapped[str] = mapped_column(String(128), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(255))

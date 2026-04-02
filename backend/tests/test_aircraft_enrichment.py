@@ -70,6 +70,7 @@ def test_enrichment_populates_from_snapshot(settings):
     assert result.registration == "VH-ABC"
     assert result.type_code == "A320"
     assert result.model == "A320-232"
+    assert result.category == "L"
 
 
 def test_enrichment_handles_provider_failure_gracefully(settings):

@@ -59,15 +59,15 @@ describe("useMapStore", () => {
     const mapStore = useMapStore();
 
     mapStore.setBounds({
-      north: -33.879656336198934,
-      south: -35.32308617090494,
-      east: 143.9140319824219,
-      west: 140.4698181152344,
+      north: -29,
+      south: -40,
+      east: 151,
+      west: 138,
     });
 
     expect(mapStore.liveQuery?.isClamped).toBe(true);
     expect(mapStore.liveQuery?.queryBounds).not.toEqual(mapStore.liveQuery?.visibleBounds);
-    expect(mapStore.liveQuery?.center.lat).toBeCloseTo(-34.60137125355194, 10);
-    expect(mapStore.liveQuery?.center.lon).toBeCloseTo(142.19192504882812, 10);
+    expect(mapStore.liveQuery?.center.lat).toBeCloseTo(-34.5, 10);
+    expect(mapStore.liveQuery?.center.lon).toBeCloseTo(144.5, 10);
   });
 });

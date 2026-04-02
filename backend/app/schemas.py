@@ -32,6 +32,7 @@ def build_display_type(
     manufacturer: str | None = None,
     model: str | None = None,
     category: str | None = None,
+    category_label: str | None = None,
 ) -> str | None:
     if manufacturer and model:
         return f"{manufacturer} {model}"
@@ -39,6 +40,8 @@ def build_display_type(
         return model
     if type_code:
         return type_code
+    if category_label:
+        return category_label
     if category:
         return category
     return None
@@ -96,6 +99,8 @@ class NearbyFlightResponse(BaseModel):
     manufacturer: str | None = None
     model: str | None = None
     category: str | None = None
+    category_label: str | None = None
+    category_description: str | None = None
     display_type: str | None = None
 
 
@@ -117,6 +122,8 @@ class AircraftRegistryResponse(BaseModel):
     manufacturer: str | None = None
     model: str | None = None
     category: str | None = None
+    category_label: str | None = None
+    category_description: str | None = None
     first_seen: datetime
     last_updated: datetime
 
@@ -147,6 +154,8 @@ class FlightLogResponse(BaseModel):
     manufacturer: str | None = None
     model: str | None = None
     category: str | None = None
+    category_label: str | None = None
+    category_description: str | None = None
     display_type: str | None = None
     photos: list[PhotoResponse]
     aircraft_registry: AircraftRegistryResponse | None = None
@@ -167,6 +176,8 @@ class LoggedFlightNearbyResponse(BaseModel):
     manufacturer: str | None = None
     model: str | None = None
     category: str | None = None
+    category_label: str | None = None
+    category_description: str | None = None
     display_type: str | None = None
     photos: list[PhotoResponse]
     distance_km: float

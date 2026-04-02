@@ -17,6 +17,8 @@ function makeLog(id: number, distance: number, createdAt: string): ApiLoggedFlig
     manufacturer: null,
     model: null,
     category: null,
+    category_label: null,
+    category_description: null,
     display_type: null,
     photos: [],
     distance_km: distance,

@@ -4,18 +4,25 @@ import asyncio
 
 from sqlalchemy import inspect, select
 
-from app.models import FlightLog, FlightLogPhoto
+from app.models import AircraftCategory, FlightLog, FlightLogPhoto
 
 
 def test_startup_creates_expected_tables(app):
     async def run():
         async with app.router.lifespan_context(app):
             inspector = inspect(app.state.engine)
-            assert {"flight_logs", "flight_log_photos", "aircraft_registry", "aircraft_types"} <= set(
+            assert {"flight_logs", "flight_log_photos", "aircraft_registry", "aircraft_types", "aircraft_categories"} <= set(
                 inspector.get_table_names()
             )
             owner_uuid_columns = {column["name"] for column in inspector.get_columns("flight_logs")}
             assert "owner_uuid" in owner_uuid_columns
+            session = app.state.session_maker()
+            try:
+                assert session.execute(
+                    select(AircraftCategory).where(AircraftCategory.code == "L")
+                ).scalar_one().label == "Light"
+            finally:
+                session.close()
 
     asyncio.run(run())
 

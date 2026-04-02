@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,6 +10,8 @@ from app.api.logs import photo_router, router as logs_router
 from app.config import Settings, get_settings
 from app.db import Base, create_db_engine, create_session_maker, wait_for_database
 from app.services.aircraft_enrichment import AircraftEnrichmentService
+from app.services.aircraft_categories import seed_aircraft_categories
+from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
 from app.services.image_storage import ImageStorageService
 from app.services.opensky import OpenSkyClient
 
@@ -27,6 +30,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         app.state.session_maker = session_maker
         app.state.opensky_client = OpenSkyClient(settings)
         app.state.enrichment_service = AircraftEnrichmentService(settings)
+        app.state.enrichment_queue = AircraftEnrichmentQueue(session_maker, app.state.enrichment_service)
         app.state.image_storage = ImageStorageService(settings.upload_dir)
 
         await wait_for_database(
@@ -35,10 +39,28 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             retry_delay_seconds=settings.db_startup_retry_delay_seconds,
         )
         Base.metadata.create_all(bind=engine)
+        session = session_maker()
+        try:
+            seed_aircraft_categories(session)
+            session.commit()
+        finally:
+            session.close()
 
         try:
+            app.state.enrichment_queue.start()
+            app.state.enrichment_warmup_task = asyncio.create_task(
+                app.state.enrichment_queue.warm_snapshot(),
+                name="aircraft-enrichment-warmup",
+            )
             yield
         finally:
+            if app.state.enrichment_warmup_task is not None:
+                app.state.enrichment_warmup_task.cancel()
+                try:
+                    await app.state.enrichment_warmup_task
+                except asyncio.CancelledError:
+                    pass
+            await app.state.enrichment_queue.stop()
             app.state.opensky_client.close()
             app.state.enrichment_service.close()
             engine.dispose()

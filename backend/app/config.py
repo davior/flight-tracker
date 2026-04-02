@@ -27,7 +27,7 @@ class Settings:
     runtime_dir: Path = _default_runtime_dir()
     db_startup_max_attempts: int = 30
     db_startup_retry_delay_seconds: float = 1.0
-    max_nearby_radius_km: int = 100
+    max_nearby_radius_km: int = 500
     opensky_client_id: str | None = None
     opensky_client_secret: str | None = None
     adsbx_db_url: str = DEFAULT_ADSBX_DB_URL
@@ -45,7 +45,7 @@ class Settings:
             runtime_dir=Path(os.getenv("RUNTIME_DIR", _default_runtime_dir())),
             db_startup_max_attempts=int(os.getenv("DB_STARTUP_MAX_ATTEMPTS", "30")),
             db_startup_retry_delay_seconds=float(os.getenv("DB_STARTUP_RETRY_DELAY_SECONDS", "1.0")),
-            max_nearby_radius_km=int(os.getenv("MAX_NEARBY_RADIUS_KM", "100")),
+            max_nearby_radius_km=int(os.getenv("MAX_NEARBY_RADIUS_KM", "500")),
             opensky_client_id=os.getenv("OPENSKY_CLIENT_ID"),
             opensky_client_secret=os.getenv("OPENSKY_CLIENT_SECRET"),
             adsbx_db_url=os.getenv("ADSBX_DB_URL", DEFAULT_ADSBX_DB_URL),

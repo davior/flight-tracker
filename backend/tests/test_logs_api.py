@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from app.api.logs import create_log, get_nearby_logs, get_photo
 from app.db import create_db_engine, create_session_maker
-from app.models import AircraftRegistry, Base, FlightLog, FlightLogPhoto
+from app.models import AircraftCategory, AircraftRegistry, Base, FlightLog, FlightLogPhoto
 from PIL import Image, PngImagePlugin
 
 from app.schemas import FlightLogCreate
@@ -215,6 +215,13 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
             category="L",
         )
     )
+    db_session.add(
+        AircraftCategory(
+            code="L",
+            label="Light",
+            description="Small aircraft in the light wake turbulence category.",
+        )
+    )
     log = FlightLog(
         icao24="abc123",
         callsign="TEST123",
@@ -242,6 +249,8 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
     assert len(results) == 1
     assert results[0].is_owner is True
     assert results[0].display_type == "Airbus A320-232"
+    assert results[0].category == "L"
+    assert results[0].category_label == "Light"
     assert results[0].photos[0].url == f"/photos/{results[0].photos[0].id}"
     assert results[0].distance_km > 0
 

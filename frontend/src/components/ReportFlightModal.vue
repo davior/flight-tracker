@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
+import { formatAircraftCategory, getAircraftCategoryDescription, getAircraftDisplayLabel } from "@/lib/aircraft";
 import type { ApiLiveFlight } from "@/types/api";
 
 const props = defineProps<{
@@ -78,7 +79,13 @@ onBeforeUnmount(() => {
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Report flight</p>
           <h2 class="text-xl font-bold">{{ title }}</h2>
-          <p class="text-sm text-[var(--muted)]">{{ flight.display_type || "Aircraft type unavailable" }}</p>
+          <p class="text-sm text-[var(--muted)]">{{ getAircraftDisplayLabel(flight) || "Aircraft type unavailable" }}</p>
+          <p v-if="formatAircraftCategory(flight)" class="mt-1 text-xs text-[var(--muted)]">
+            Category: {{ formatAircraftCategory(flight) }}
+          </p>
+          <p v-if="getAircraftCategoryDescription(flight)" class="mt-1 text-xs text-[var(--muted)]">
+            {{ getAircraftCategoryDescription(flight) }}
+          </p>
         </div>
         <button class="rounded-full bg-white/70 px-3 py-1 text-sm font-semibold" @click="$emit('close')">Close</button>
       </div>

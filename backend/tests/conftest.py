@@ -16,7 +16,7 @@ def settings(tmp_path: Path) -> Settings:
         database_url=f"sqlite:///{tmp_path / 'test.db'}",
         upload_dir=upload_dir,
         runtime_dir=runtime_dir,
-        max_nearby_radius_km=100,
+        max_nearby_radius_km=500,
         opensky_client_id=None,
         opensky_client_secret=None,
     )

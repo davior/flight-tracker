@@ -44,6 +44,8 @@ export interface ApiLiveFlight {
   manufacturer: string | null;
   model: string | null;
   category: string | null;
+  category_label: string | null;
+  category_description: string | null;
   display_type: string | null;
 }
 
@@ -62,6 +64,8 @@ export interface ApiLoggedFlight {
   manufacturer: string | null;
   model: string | null;
   category: string | null;
+  category_label: string | null;
+  category_description: string | null;
   display_type: string | null;
   photos: ApiPhoto[];
   distance_km: number;
@@ -92,6 +96,8 @@ export interface ApiCreatedLog {
   manufacturer: string | null;
   model: string | null;
   category: string | null;
+  category_label: string | null;
+  category_description: string | null;
   display_type: string | null;
   photos: ApiPhoto[];
 }

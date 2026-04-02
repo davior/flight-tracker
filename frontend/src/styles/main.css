@@ -178,3 +178,25 @@ select {
   border-radius: 999px;
   background: var(--accent);
 }
+
+.live-flight-marker {
+  display: flex;
+  height: 2.125rem;
+  width: 2.125rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 0.12rem solid rgba(17, 32, 49, 0.12);
+  box-shadow:
+    0 10px 22px rgba(17, 32, 49, 0.24),
+    0 0 0 0.14rem rgba(29, 122, 95, 0.16);
+}
+
+.live-flight-marker__aircraft {
+  width: 1.55rem;
+  height: 1.55rem;
+  fill: var(--live);
+  transform: rotate(var(--flight-heading, 0deg));
+  transform-origin: center;
+}

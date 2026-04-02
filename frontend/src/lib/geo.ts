@@ -4,7 +4,7 @@ const EARTH_RADIUS_KM = 6371;
 const GEO_EPSILON = 0.000001;
 const CLAMP_RADIUS_MARGIN_KM = 0.1;
 
-export const MAX_NEARBY_RADIUS_KM = 100;
+export const MAX_NEARBY_RADIUS_KM = 500;
 
 export function haversineKm(from: LatLng, to: LatLng): number {
   const lat1 = (from.lat * Math.PI) / 180;

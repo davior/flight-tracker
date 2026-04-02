@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import AircraftRegistry, AircraftType
 from app.schemas import normalize_icao24
+from app.services.aircraft_categories import normalize_aircraft_category_code
 
 
 class AircraftEnrichmentService:
@@ -24,6 +25,12 @@ class AircraftEnrichmentService:
 
     def close(self) -> None:
         self.session.close()
+
+    def warm_cache(self, allow_download: bool = False) -> None:
+        try:
+            self._load_snapshot_index(allow_download=allow_download)
+        except Exception:
+            return
 
     def enrich(self, db_session: Session, icao24: str) -> AircraftRegistry | None:
         normalized = normalize_icao24(icao24)
@@ -43,7 +50,7 @@ class AircraftEnrichmentService:
             type_code=self._normalize_type_code(provider_record.get("type_code")),
             manufacturer=self._coerce_optional(provider_record.get("manufacturer")),
             model=self._coerce_optional(provider_record.get("model")),
-            category=self._coerce_optional(provider_record.get("category")),
+            category=normalize_aircraft_category_code(self._coerce_optional(provider_record.get("category"))),
         )
         self._fill_from_aircraft_type(db_session, registry)
         db_session.add(registry)
@@ -68,8 +75,8 @@ class AircraftEnrichmentService:
             "category": self._derive_category(record),
         }
 
-    def _load_snapshot_index(self) -> dict[str, dict[str, Any]]:
-        snapshot_path = self._ensure_snapshot_path()
+    def _load_snapshot_index(self, allow_download: bool = True) -> dict[str, dict[str, Any]]:
+        snapshot_path = self._ensure_snapshot_path(allow_download=allow_download)
         if self._snapshot_index is not None and self._snapshot_loaded_from == snapshot_path:
             return self._snapshot_index
 
@@ -81,7 +88,7 @@ class AircraftEnrichmentService:
         self._snapshot_loaded_from = snapshot_path
         return snapshot_index
 
-    def _ensure_snapshot_path(self) -> Path:
+    def _ensure_snapshot_path(self, allow_download: bool = True) -> Path:
         snapshot_path = self.settings.adsbx_snapshot_path
         self.settings.ensure_directories()
 
@@ -90,6 +97,9 @@ class AircraftEnrichmentService:
             modified_at = datetime.fromtimestamp(snapshot_path.stat().st_mtime, tz=timezone.utc)
             if datetime.now(timezone.utc) - modified_at <= max_age:
                 return snapshot_path
+
+        if not allow_download:
+            raise FileNotFoundError(snapshot_path)
 
         temp_path = snapshot_path.with_suffix(".tmp")
         try:
@@ -158,7 +168,7 @@ class AircraftEnrichmentService:
         if not registry.model:
             registry.model = aircraft_type.model
         if not registry.category:
-            registry.category = aircraft_type.category
+            registry.category = normalize_aircraft_category_code(aircraft_type.category)
 
     @staticmethod
     def _first_present(record: dict[str, Any], *keys: str) -> Any:

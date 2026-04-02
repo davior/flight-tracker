@@ -31,10 +31,10 @@ describe("fitBoundsToMaxRadius", () => {
 
   it("returns a centered square that fits the limit when visible bounds are too large", () => {
     const visibleBounds = {
-      north: -33.879656336198934,
-      south: -35.32308617090494,
-      east: 143.9140319824219,
-      west: 140.4698181152344,
+      north: -29,
+      south: -40,
+      east: 151,
+      west: 138,
     };
 
     const result = fitBoundsToMaxRadius(visibleBounds, MAX_NEARBY_RADIUS_KM);

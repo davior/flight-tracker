@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatAircraftCategory, getAircraftCategoryDescription, getAircraftDisplayLabel } from "@/lib/aircraft";
 import { formatTimestamp } from "@/lib/format";
 import { formatDistance } from "@/lib/geo";
 import type { ApiLoggedFlight } from "@/types/api";
@@ -24,7 +25,13 @@ defineEmits<{
       <div class="min-w-0">
         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Logged Flight</p>
         <h3 class="truncate text-base font-bold">{{ flight.callsign || flight.icao24.toUpperCase() }}</h3>
-        <p class="text-[var(--muted)]">{{ flight.display_type || "Aircraft type unavailable" }}</p>
+        <p class="text-[var(--muted)]">{{ getAircraftDisplayLabel(flight) || "Aircraft type unavailable" }}</p>
+        <p v-if="formatAircraftCategory(flight)" class="mt-1 text-xs text-[var(--muted)]">
+          Category: {{ formatAircraftCategory(flight) }}
+        </p>
+        <p v-if="getAircraftCategoryDescription(flight)" class="mt-1 text-xs text-[var(--muted)]">
+          {{ getAircraftCategoryDescription(flight) }}
+        </p>
       </div>
     </div>
     <p class="line-clamp-3 text-sm text-[var(--muted)]">{{ flight.note || "No note added." }}</p>

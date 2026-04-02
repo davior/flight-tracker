@@ -4,6 +4,7 @@ from fastapi import Request
 
 from app.config import Settings
 from app.services.aircraft_enrichment import AircraftEnrichmentService
+from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
 from app.services.image_storage import ImageStorageService
 from app.services.opensky import OpenSkyClient
 
@@ -18,6 +19,10 @@ def get_opensky_client(request: Request) -> OpenSkyClient:
 
 def get_enrichment_service(request: Request) -> AircraftEnrichmentService:
     return request.app.state.enrichment_service
+
+
+def get_enrichment_queue(request: Request) -> AircraftEnrichmentQueue:
+    return request.app.state.enrichment_queue
 
 
 def get_image_storage_service(request: Request) -> ImageStorageService:

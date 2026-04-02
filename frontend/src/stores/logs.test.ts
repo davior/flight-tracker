@@ -48,6 +48,6 @@ describe("useLogsStore", () => {
     await logsStore.refresh();
 
     expect(fetchLoggedFlightsSpy).not.toHaveBeenCalled();
-    expect(logsStore.error).toBe("Zoom in to load nearby logs within 100 km.");
+    expect(logsStore.error).toBe("Zoom in to load nearby logs within 500 km.");
   });
 });

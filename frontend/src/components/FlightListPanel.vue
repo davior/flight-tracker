@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatAircraftCategory, getAircraftDisplayLabel } from "@/lib/aircraft";
 import { formatTimestamp } from "@/lib/format";
 import { formatDistance } from "@/lib/geo";
 import type { ApiLiveFlight, ApiLoggedFlight, AppMode } from "@/types/api";
@@ -30,7 +31,10 @@ defineEmits<{
             <div>
               <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Live Flight</p>
               <h3 class="text-lg font-bold">{{ item.callsign || item.icao24.toUpperCase() }}</h3>
-              <p class="text-sm text-[var(--muted)]">{{ item.display_type || "Aircraft type unavailable" }}</p>
+              <p class="text-sm text-[var(--muted)]">{{ getAircraftDisplayLabel(item) || "Aircraft type unavailable" }}</p>
+              <p v-if="formatAircraftCategory(item)" class="mt-1 text-xs text-[var(--muted)]">
+                Category: {{ formatAircraftCategory(item) }}
+              </p>
             </div>
             <span class="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
               {{ formatDistance(item.distance_km) }}
@@ -64,7 +68,10 @@ defineEmits<{
                 <div class="min-w-0">
                   <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Logged Flight</p>
                   <h3 class="truncate text-lg font-bold">{{ item.callsign || item.icao24.toUpperCase() }}</h3>
-                  <p class="text-sm text-[var(--muted)]">{{ item.display_type || "Aircraft type unavailable" }}</p>
+                  <p class="text-sm text-[var(--muted)]">{{ getAircraftDisplayLabel(item) || "Aircraft type unavailable" }}</p>
+                  <p v-if="formatAircraftCategory(item)" class="mt-1 text-xs text-[var(--muted)]">
+                    Category: {{ formatAircraftCategory(item) }}
+                  </p>
                 </div>
                 <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-[var(--logged)]">
                   {{ formatDistance(item.distance_km) }}

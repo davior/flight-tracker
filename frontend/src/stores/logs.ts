@@ -9,7 +9,7 @@ import { useIdentityStore } from "./identity";
 import { useMapStore } from "./map";
 import { useUiStore } from "./ui";
 
-const MAX_QUERY_RADIUS_KM = 100;
+const MAX_QUERY_RADIUS_KM = 500;
 
 export const useLogsStore = defineStore("logs", () => {
   const loggedFlights = ref<ApiLoggedFlight[]>([]);

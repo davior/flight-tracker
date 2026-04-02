@@ -22,6 +22,7 @@ from app.schemas import (
     parse_time_window,
 )
 from app.services.aircraft_enrichment import AircraftEnrichmentService
+from app.services.aircraft_categories import load_aircraft_category_map, normalize_aircraft_category_code
 from app.services.image_storage import ImageStorageError, ImageStorageService, UnsupportedImageError
 from app.utils.geo import center_from_bounds, haversine_distance_km, radius_from_bounds
 
@@ -117,7 +118,11 @@ async def create_log(
         raise HTTPException(status_code=500, detail="Unexpected error while creating flight log") from exc
 
     db_session.refresh(flight_log)
-    return serialize_flight_log(flight_log, registry)
+    category = None
+    if registry and registry.category:
+        category_map = load_aircraft_category_map(db_session, [registry.category])
+        category = category_map.get(normalize_aircraft_category_code(registry.category) or "")
+    return serialize_flight_log(flight_log, registry, category)
 
 
 @router.get("/nearby", response_model=list[LoggedFlightNearbyResponse])
@@ -161,6 +166,10 @@ def get_nearby_logs(
             select(AircraftRegistry).where(AircraftRegistry.icao24.in_(icao24s))
         ).scalars()
         registry_map = {row.icao24: row for row in registry_rows}
+    category_map = load_aircraft_category_map(
+        db_session,
+        (registry.category for registry in registry_map.values()),
+    )
 
     results: list[LoggedFlightNearbyResponse] = []
     for log in log_items:
@@ -176,6 +185,11 @@ def get_nearby_logs(
                 distance_km=distance_km,
                 viewer_uuid=viewer_uuid,
                 registry=registry_map.get(log.icao24),
+                category=category_map.get(
+                    normalize_aircraft_category_code(registry_map[log.icao24].category)
+                )
+                if log.icao24 in registry_map and registry_map[log.icao24].category
+                else None,
             )
         )
 

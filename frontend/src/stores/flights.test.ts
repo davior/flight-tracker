@@ -94,10 +94,10 @@ describe("useFlightsStore", () => {
     const flightsStore = useFlightsStore();
     const mapStore = useMapStore();
     mapStore.setBounds({
-      north: -33.879656336198934,
-      south: -35.32308617090494,
-      east: 143.9140319824219,
-      west: 140.4698181152344,
+      north: -29,
+      south: -40,
+      east: 151,
+      west: 138,
     });
 
     const fetchLiveFlightsSpy = vi.spyOn(api, "fetchLiveFlights").mockResolvedValue([]);
@@ -108,7 +108,7 @@ describe("useFlightsStore", () => {
       bounds: mapStore.liveQuery?.queryBounds,
     });
     expect(deriveRadiusFromBounds(mapStore.liveQuery!.queryBounds)).toBeLessThanOrEqual(MAX_NEARBY_RADIUS_KM);
-    expect(flightsStore.coverageMessage).toBe("Showing live flights for the highlighted area. Zoom in to cover more of the visible map.");
+    expect(flightsStore.coverageMessage).toBe("Showing live flights for the highlighted area. Visible coverage is limited to 500 km.");
     expect(flightsStore.error).toBeNull();
   });
 

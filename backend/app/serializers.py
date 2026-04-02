@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from app.models import AircraftRegistry, FlightLog, FlightLogPhoto
-from app.schemas import FlightLogResponse, LoggedFlightNearbyResponse, PhotoResponse, build_display_type
+from app.models import AircraftCategory, AircraftRegistry, FlightLog, FlightLogPhoto
+from app.schemas import (
+    AircraftRegistryResponse,
+    FlightLogResponse,
+    LoggedFlightNearbyResponse,
+    PhotoResponse,
+    build_display_type,
+)
+from app.services.aircraft_categories import resolve_aircraft_category_details
 
 
 def photo_url(photo_id: int) -> str:
@@ -19,7 +26,37 @@ def serialize_photo(photo: FlightLogPhoto) -> PhotoResponse:
     )
 
 
-def serialize_flight_log(log: FlightLog, registry: AircraftRegistry | None = None) -> FlightLogResponse:
+def serialize_aircraft_registry(
+    registry: AircraftRegistry,
+    category: AircraftCategory | None = None,
+) -> AircraftRegistryResponse:
+    category_code, category_label, category_description = resolve_aircraft_category_details(
+        registry.category,
+        {category.code: category} if category is not None else {},
+    )
+    return AircraftRegistryResponse(
+        icao24=registry.icao24,
+        registration=registry.registration,
+        type_code=registry.type_code,
+        manufacturer=registry.manufacturer,
+        model=registry.model,
+        category=category_code,
+        category_label=category_label,
+        category_description=category_description,
+        first_seen=registry.first_seen,
+        last_updated=registry.last_updated,
+    )
+
+
+def serialize_flight_log(
+    log: FlightLog,
+    registry: AircraftRegistry | None = None,
+    category: AircraftCategory | None = None,
+) -> FlightLogResponse:
+    category_code, category_label, category_description = resolve_aircraft_category_details(
+        registry.category if registry else None,
+        {category.code: category} if category is not None else {},
+    )
     return FlightLogResponse(
         id=log.id,
         created_at=log.created_at,
@@ -43,15 +80,18 @@ def serialize_flight_log(log: FlightLog, registry: AircraftRegistry | None = Non
         type_code=registry.type_code if registry else None,
         manufacturer=registry.manufacturer if registry else None,
         model=registry.model if registry else None,
-        category=registry.category if registry else None,
+        category=category_code,
+        category_label=category_label,
+        category_description=category_description,
         display_type=build_display_type(
             type_code=registry.type_code if registry else None,
             manufacturer=registry.manufacturer if registry else None,
             model=registry.model if registry else None,
-            category=registry.category if registry else None,
+            category=category_code,
+            category_label=category_label,
         ),
         photos=[serialize_photo(photo) for photo in log.photos],
-        aircraft_registry=registry,
+        aircraft_registry=serialize_aircraft_registry(registry, category) if registry else None,
     )
 
 
@@ -68,7 +108,12 @@ def serialize_nearby_log(
     distance_km: float,
     viewer_uuid: str | None,
     registry: AircraftRegistry | None = None,
+    category: AircraftCategory | None = None,
 ) -> LoggedFlightNearbyResponse:
+    category_code, category_label, category_description = resolve_aircraft_category_details(
+        registry.category if registry else None,
+        {category.code: category} if category is not None else {},
+    )
     return LoggedFlightNearbyResponse(
         id=log.id,
         created_at=log.created_at,
@@ -83,12 +128,15 @@ def serialize_nearby_log(
         type_code=registry.type_code if registry else None,
         manufacturer=registry.manufacturer if registry else None,
         model=registry.model if registry else None,
-        category=registry.category if registry else None,
+        category=category_code,
+        category_label=category_label,
+        category_description=category_description,
         display_type=build_display_type(
             type_code=registry.type_code if registry else None,
             manufacturer=registry.manufacturer if registry else None,
             model=registry.model if registry else None,
-            category=registry.category if registry else None,
+            category=category_code,
+            category_label=category_label,
         ),
         photos=[serialize_photo(photo) for photo in log.photos],
         distance_km=distance_km,
