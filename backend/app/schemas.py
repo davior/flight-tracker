@@ -104,6 +104,15 @@ class NearbyFlightResponse(BaseModel):
     display_type: str | None = None
 
 
+class LiveFlightCapabilitiesResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    provider: str
+    supports_history: bool
+    max_history_minutes: int
+    history_step_minutes: int
+
+
 class PhotoResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

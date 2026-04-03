@@ -8,6 +8,7 @@ from pathlib import Path
 
 DEFAULT_DATABASE_URL = "mysql+mysqlconnector://flightuser:flightpass@db:3306/flightlogs"
 DEFAULT_ADSBX_DB_URL = "https://downloads.adsbexchange.com/downloads/basic-ac-db.json.gz"
+DEFAULT_ADSBX_API_BASE_URL = "https://adsbexchange.com/api/aircraft"
 
 
 def _default_upload_dir() -> Path:
@@ -28,8 +29,11 @@ class Settings:
     db_startup_max_attempts: int = 30
     db_startup_retry_delay_seconds: float = 1.0
     max_nearby_radius_km: int = 500
+    live_flight_provider: str = "opensky"
     opensky_client_id: str | None = None
     opensky_client_secret: str | None = None
+    adsbx_api_key: str | None = None
+    adsbx_api_base_url: str = DEFAULT_ADSBX_API_BASE_URL
     adsbx_db_url: str = DEFAULT_ADSBX_DB_URL
     adsbx_snapshot_max_age_hours: int = 24
 
@@ -46,8 +50,11 @@ class Settings:
             db_startup_max_attempts=int(os.getenv("DB_STARTUP_MAX_ATTEMPTS", "30")),
             db_startup_retry_delay_seconds=float(os.getenv("DB_STARTUP_RETRY_DELAY_SECONDS", "1.0")),
             max_nearby_radius_km=int(os.getenv("MAX_NEARBY_RADIUS_KM", "500")),
+            live_flight_provider=os.getenv("LIVE_FLIGHT_PROVIDER", "opensky"),
             opensky_client_id=os.getenv("OPENSKY_CLIENT_ID"),
             opensky_client_secret=os.getenv("OPENSKY_CLIENT_SECRET"),
+            adsbx_api_key=os.getenv("ADSBX_API_KEY"),
+            adsbx_api_base_url=os.getenv("ADSBX_API_BASE_URL", DEFAULT_ADSBX_API_BASE_URL),
             adsbx_db_url=os.getenv("ADSBX_DB_URL", DEFAULT_ADSBX_DB_URL),
             adsbx_snapshot_max_age_hours=int(os.getenv("ADSBX_SNAPSHOT_MAX_AGE_HOURS", "24")),
         )

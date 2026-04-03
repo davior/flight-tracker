@@ -49,6 +49,13 @@ export interface ApiLiveFlight {
   display_type: string | null;
 }
 
+export interface ApiLiveFlightCapabilities {
+  provider: string;
+  supports_history: boolean;
+  max_history_minutes: number;
+  history_step_minutes: number;
+}
+
 export interface ApiLoggedFlight {
   id: number;
   created_at: string;

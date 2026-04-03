@@ -1,20 +1,39 @@
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.dependencies import get_app_settings, get_enrichment_queue, get_opensky_client
+from app.dependencies import get_app_settings, get_enrichment_queue, get_live_flight_provider
 from app.models import AircraftRegistry
-from app.schemas import NearbyFlightResponse, build_display_type
+from app.schemas import LiveFlightCapabilitiesResponse, NearbyFlightResponse, build_display_type
 from app.services.aircraft_categories import load_aircraft_category_map, resolve_aircraft_category_details
 from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
-from app.services.opensky import OpenSkyClient, OpenSkyError
+from app.services.live_flight_provider import LiveFlightProvider, LiveFlightProviderError
 from app.utils.geo import radius_from_bounds
 
 
 router = APIRouter(prefix="/flights", tags=["flights"])
+MAX_HISTORY_MINUTES = 60
+HISTORY_STEP_MINUTES = 1
+
+
+def resolve_time_shift_seconds(time_shift_minutes: int) -> int | None:
+    if time_shift_minutes == 0:
+        return None
+
+    shifted_time_seconds = int(time.time()) - (time_shift_minutes * 60)
+    return shifted_time_seconds - (shifted_time_seconds % 5)
+
+
+@router.get("/capabilities", response_model=LiveFlightCapabilitiesResponse)
+def get_live_flight_capabilities(
+    live_flight_provider: LiveFlightProvider = Depends(get_live_flight_provider),
+) -> LiveFlightCapabilitiesResponse:
+    return LiveFlightCapabilitiesResponse.model_validate(live_flight_provider.capabilities)
 
 
 @router.get("/nearby", response_model=list[NearbyFlightResponse])
@@ -23,8 +42,9 @@ def get_nearby_flights(
     south: float = Query(...),
     east: float = Query(...),
     west: float = Query(...),
+    time_shift_minutes: int = 0,
     settings=Depends(get_app_settings),
-    opensky_client: OpenSkyClient = Depends(get_opensky_client),
+    live_flight_provider: LiveFlightProvider = Depends(get_live_flight_provider),
     enrichment_queue: AircraftEnrichmentQueue = Depends(get_enrichment_queue),
     db_session: Session = Depends(get_db),
 ) -> list[NearbyFlightResponse]:
@@ -40,13 +60,41 @@ def get_nearby_flights(
             status_code=422,
             detail=f"requested bounds exceed the maximum nearby radius of {settings.max_nearby_radius_km} km",
         )
+    if time_shift_minutes < 0 or time_shift_minutes > MAX_HISTORY_MINUTES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"time_shift_minutes must be between 0 and {MAX_HISTORY_MINUTES}",
+        )
+    capabilities = live_flight_provider.capabilities
+    if time_shift_minutes > capabilities.max_history_minutes:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "live_history_unavailable",
+                "message": "Historical live positions are unavailable for the configured live provider.",
+                "provider": capabilities.provider,
+            },
+        )
+
+    time_seconds = resolve_time_shift_seconds(time_shift_minutes)
 
     try:
-        flights = opensky_client.get_flights_in_bounds(north=north, south=south, east=east, west=west)
-    except OpenSkyError as exc:
+        flights = live_flight_provider.get_flights_in_bounds(
+            north=north,
+            south=south,
+            east=east,
+            west=west,
+            time_seconds=time_seconds,
+        )
+    except LiveFlightProviderError as exc:
         raise HTTPException(
             status_code=502,
-            detail={"code": "opensky_unavailable", "message": str(exc)},
+            detail={
+                "code": "live_provider_unavailable",
+                "message": str(exc),
+                "provider": exc.provider,
+                "reason": exc.code,
+            },
         ) from exc
 
     icao24s = [flight.icao24 for flight in flights]

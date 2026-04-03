@@ -17,8 +17,10 @@ def settings(tmp_path: Path) -> Settings:
         upload_dir=upload_dir,
         runtime_dir=runtime_dir,
         max_nearby_radius_km=500,
+        live_flight_provider="opensky",
         opensky_client_id=None,
         opensky_client_secret=None,
+        adsbx_api_key="demo-key",
     )
 
 

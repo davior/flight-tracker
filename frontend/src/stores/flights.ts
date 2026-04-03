@@ -1,9 +1,10 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import { ApiError, fetchLiveFlights } from "@/lib/api";
-import type { ApiLiveFlight } from "@/types/api";
+import { ApiError, fetchLiveFlightCapabilities, fetchLiveFlights } from "@/lib/api";
+import type { ApiLiveFlight, ApiLiveFlightCapabilities } from "@/types/api";
 import { useMapStore } from "./map";
+import { useUiStore } from "./ui";
 
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const RATE_LIMIT_BACKOFF_STEPS_MS = [60_000, 120_000, 300_000, 600_000] as const;
@@ -12,8 +13,16 @@ type RefreshReason = "poll" | "viewport" | "manual";
 
 export const useFlightsStore = defineStore("flights", () => {
   const liveFlights = ref<ApiLiveFlight[]>([]);
+  const liveCapabilities = ref<ApiLiveFlightCapabilities>({
+    provider: "unknown",
+    supports_history: false,
+    max_history_minutes: 0,
+    history_step_minutes: 1,
+  });
   const isLoading = ref(false);
+  const isLoadingCapabilities = ref(false);
   const error = ref<string | null>(null);
+  const capabilitiesError = ref<string | null>(null);
   const pollingHandle = ref<number | null>(null);
   const pollingEnabled = ref(false);
   const isWindowActive = ref(true);
@@ -26,12 +35,41 @@ export const useFlightsStore = defineStore("flights", () => {
   const sortedFlights = computed(() =>
     [...liveFlights.value].sort((left, right) => left.distance_km - right.distance_km),
   );
+  const effectiveTimeShiftMinutes = computed(() => {
+    const uiStore = useUiStore();
+    return liveCapabilities.value.supports_history ? uiStore.liveTimeShiftMinutes : 0;
+  });
   const coverageMessage = computed(() => {
     const mapStore = useMapStore();
     return mapStore.liveQuery?.isClamped
       ? "Showing live flights for the highlighted area. Visible coverage is limited to 500 km."
       : null;
   });
+
+  async function loadCapabilities(): Promise<void> {
+    isLoadingCapabilities.value = true;
+    capabilitiesError.value = null;
+
+    try {
+      liveCapabilities.value = await fetchLiveFlightCapabilities();
+      if (!liveCapabilities.value.supports_history) {
+        const uiStore = useUiStore();
+        uiStore.liveTimeShiftMinutes = 0;
+      }
+    } catch (nextError) {
+      capabilitiesError.value = nextError instanceof Error ? nextError.message : "Unable to load live-flight capabilities";
+      liveCapabilities.value = {
+        provider: "unknown",
+        supports_history: false,
+        max_history_minutes: 0,
+        history_step_minutes: 1,
+      };
+      const uiStore = useUiStore();
+      uiStore.liveTimeShiftMinutes = 0;
+    } finally {
+      isLoadingCapabilities.value = false;
+    }
+  }
 
   function clearPollingTimer(): void {
     if (pollingHandle.value !== null) {
@@ -75,17 +113,16 @@ export const useFlightsStore = defineStore("flights", () => {
     lastRateLimitAt.value = null;
   }
 
-  function isOpenSkyRateLimitError(nextError: unknown): nextError is ApiError {
+  function isLiveProviderRateLimitError(nextError: unknown): nextError is ApiError {
     return (
       nextError instanceof ApiError &&
       nextError.status === 502 &&
       typeof nextError.detail === "object" &&
       nextError.detail !== null &&
       "code" in nextError.detail &&
-      nextError.detail.code === "opensky_unavailable" &&
-      "message" in nextError.detail &&
-      typeof nextError.detail.message === "string" &&
-      nextError.detail.message.includes("status 429")
+      nextError.detail.code === "live_provider_unavailable" &&
+      "reason" in nextError.detail &&
+      nextError.detail.reason === "rate_limited"
     );
   }
 
@@ -138,6 +175,7 @@ export const useFlightsStore = defineStore("flights", () => {
       try {
         liveFlights.value = await fetchLiveFlights({
           bounds: query.queryBounds,
+          timeShiftMinutes: effectiveTimeShiftMinutes.value,
         });
         resetRateLimitBackoff();
         if (pollingEnabled.value && isWindowActive.value) {
@@ -145,7 +183,7 @@ export const useFlightsStore = defineStore("flights", () => {
         }
       } catch (nextError) {
         error.value = nextError instanceof Error ? nextError.message : "Unable to fetch live flights";
-        if (isOpenSkyRateLimitError(nextError)) {
+        if (isLiveProviderRateLimitError(nextError)) {
           handleRateLimitFailure();
           if (pollingEnabled.value && isWindowActive.value) {
             scheduleNextPoll();
@@ -194,10 +232,15 @@ export const useFlightsStore = defineStore("flights", () => {
   return {
     consecutiveRateLimitFailures,
     coverageMessage,
+    capabilitiesError,
     error,
+    effectiveTimeShiftMinutes,
     isLoading,
+    isLoadingCapabilities,
     isWindowActive,
+    liveCapabilities,
     liveFlights,
+    loadCapabilities,
     nextAllowedPollAt,
     pollingHandle,
     pollingEnabled,

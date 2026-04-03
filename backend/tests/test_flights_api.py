@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.flights import get_nearby_flights
+from app.api.flights import get_live_flight_capabilities, get_nearby_flights
 from app.db import create_db_engine, create_session_maker
 from app.models import AircraftCategory, AircraftRegistry, Base
 from app.config import Settings
-from app.services.opensky import OpenSkyError
+from app.services.live_flight_provider import LiveFlightCapabilities, LiveFlightProviderError
 
 
 @dataclass
@@ -28,14 +29,24 @@ class FakeFlight:
     distance_km: float
 
 
-class FakeOpenSkyClient:
-    def __init__(self, flights=None, error: Exception | None = None):
+class FakeLiveFlightProvider:
+    def __init__(self, flights=None, error: Exception | None = None, capabilities: LiveFlightCapabilities | None = None):
         self.flights = flights or []
         self.error = error
         self.calls = []
+        self._capabilities = capabilities or LiveFlightCapabilities(
+            provider="opensky",
+            supports_history=True,
+            max_history_minutes=60,
+            history_step_minutes=1,
+        )
 
-    def get_flights_in_bounds(self, north: float, south: float, east: float, west: float):
-        self.calls.append({"north": north, "south": south, "east": east, "west": west})
+    @property
+    def capabilities(self) -> LiveFlightCapabilities:
+        return self._capabilities
+
+    def get_flights_in_bounds(self, north: float, south: float, east: float, west: float, time_seconds: int | None = None):
+        self.calls.append({"north": north, "south": south, "east": east, "west": west, "time_seconds": time_seconds})
         if self.error:
             raise self.error
         return self.flights
@@ -57,7 +68,7 @@ def make_db_session() -> Session:
 
 
 def test_nearby_flights_accepts_bounds():
-    fake_client = FakeOpenSkyClient(
+    fake_client = FakeLiveFlightProvider(
         flights=[
             FakeFlight(
                 icao24="abc123",
@@ -100,12 +111,12 @@ def test_nearby_flights_accepts_bounds():
         east=145.1,
         west=144.8,
         settings=settings,
-        opensky_client=fake_client,
+        live_flight_provider=fake_client,
         enrichment_queue=FakeEnrichmentQueue(),
         db_session=db_session,
     )
 
-    assert fake_client.calls == [{"north": -37.7, "south": -37.9, "east": 145.1, "west": 144.8}]
+    assert fake_client.calls == [{"north": -37.7, "south": -37.9, "east": 145.1, "west": 144.8, "time_seconds": None}]
     assert response[0].icao24 == "abc123"
     assert response[0].display_type == "Airbus A320-232"
     assert response[0].category == "L"
@@ -114,7 +125,7 @@ def test_nearby_flights_accepts_bounds():
 
 
 def test_nearby_flights_returns_distance_filtered_results():
-    fake_client = FakeOpenSkyClient(
+    fake_client = FakeLiveFlightProvider(
         flights=[
             FakeFlight(
                 icao24="near01",
@@ -140,7 +151,7 @@ def test_nearby_flights_returns_distance_filtered_results():
         east=145.1,
         west=144.8,
         settings=settings,
-        opensky_client=fake_client,
+        live_flight_provider=fake_client,
         enrichment_queue=FakeEnrichmentQueue(),
         db_session=db_session,
     )
@@ -150,7 +161,7 @@ def test_nearby_flights_returns_distance_filtered_results():
     db_session.close()
 
 
-def test_nearby_flights_returns_502_when_opensky_fails():
+def test_nearby_flights_returns_502_when_live_provider_fails():
     settings = Settings()
     db_session = make_db_session()
 
@@ -161,13 +172,25 @@ def test_nearby_flights_returns_502_when_opensky_fails():
             east=145.1,
             west=144.8,
             settings=settings,
-            opensky_client=FakeOpenSkyClient(error=OpenSkyError("rate limited")),
+            live_flight_provider=FakeLiveFlightProvider(
+                error=LiveFlightProviderError(
+                    "rate limited",
+                    code="rate_limited",
+                    provider="opensky",
+                    retryable=True,
+                )
+            ),
             enrichment_queue=FakeEnrichmentQueue(),
             db_session=db_session,
         )
 
     assert exc_info.value.status_code == 502
-    assert exc_info.value.detail == {"code": "opensky_unavailable", "message": "rate limited"}
+    assert exc_info.value.detail == {
+        "code": "live_provider_unavailable",
+        "message": "rate limited",
+        "provider": "opensky",
+        "reason": "rate_limited",
+    }
     db_session.close()
 
 
@@ -182,7 +205,7 @@ def test_nearby_flights_rejects_invalid_bounds():
             east=145.1,
             west=144.8,
             settings=settings,
-            opensky_client=FakeOpenSkyClient(),
+            live_flight_provider=FakeLiveFlightProvider(),
             enrichment_queue=FakeEnrichmentQueue(),
             db_session=db_session,
         )
@@ -203,7 +226,7 @@ def test_nearby_flights_rejects_oversized_bounds():
             east=179,
             west=-179,
             settings=settings,
-            opensky_client=FakeOpenSkyClient(),
+            live_flight_provider=FakeLiveFlightProvider(),
             enrichment_queue=FakeEnrichmentQueue(),
             db_session=db_session,
         )
@@ -213,8 +236,112 @@ def test_nearby_flights_rejects_oversized_bounds():
     db_session.close()
 
 
+@pytest.mark.parametrize("time_shift_minutes", [0, 1, 30, 60])
+def test_nearby_flights_accepts_supported_time_shift_values(time_shift_minutes: int):
+    fake_client = FakeLiveFlightProvider(
+        flights=[
+            FakeFlight(
+                icao24="abc123",
+                callsign="TEST123",
+                origin_country="Australia",
+                latitude=-37.8,
+                longitude=144.9,
+                altitude=10000.0,
+                velocity=200.0,
+                heading=180.0,
+                vertical_rate=0.0,
+                last_contact=123456,
+                distance_km=5.2,
+            )
+        ]
+    )
+    db_session = make_db_session()
+
+    with patch("app.api.flights.time.time", return_value=3_600):
+        get_nearby_flights(
+            north=-37.7,
+            south=-37.9,
+            east=145.1,
+            west=144.8,
+            time_shift_minutes=time_shift_minutes,
+            settings=Settings(),
+            live_flight_provider=fake_client,
+            enrichment_queue=FakeEnrichmentQueue(),
+            db_session=db_session,
+        )
+
+    expected_time_seconds = None
+    if time_shift_minutes > 0:
+        expected_time_seconds = 3_600 - (time_shift_minutes * 60)
+        expected_time_seconds -= expected_time_seconds % 5
+
+    assert fake_client.calls[-1]["time_seconds"] == expected_time_seconds
+    db_session.close()
+
+
+@pytest.mark.parametrize(
+    ("time_shift_minutes", "message"),
+    [
+        (-1, "time_shift_minutes must be between 0 and 60"),
+        (61, "time_shift_minutes must be between 0 and 60"),
+    ],
+)
+def test_nearby_flights_rejects_invalid_time_shift_values(time_shift_minutes: int, message: str):
+    db_session = make_db_session()
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_nearby_flights(
+            north=-37.7,
+            south=-37.9,
+            east=145.1,
+            west=144.8,
+            time_shift_minutes=time_shift_minutes,
+            settings=Settings(),
+            live_flight_provider=FakeLiveFlightProvider(),
+            enrichment_queue=FakeEnrichmentQueue(),
+            db_session=db_session,
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == message
+    db_session.close()
+
+
+def test_nearby_flights_rejects_time_shift_when_history_is_unavailable():
+    db_session = make_db_session()
+    live_flight_provider = FakeLiveFlightProvider(
+        capabilities=LiveFlightCapabilities(
+                provider="adsbx",
+                supports_history=False,
+                max_history_minutes=0,
+                history_step_minutes=1,
+            )
+        )
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_nearby_flights(
+            north=-37.7,
+            south=-37.9,
+            east=145.1,
+            west=144.8,
+            time_shift_minutes=5,
+            settings=Settings(live_flight_provider="adsbx", adsbx_api_key="demo-key"),
+            live_flight_provider=live_flight_provider,
+            enrichment_queue=FakeEnrichmentQueue(),
+            db_session=db_session,
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == {
+        "code": "live_history_unavailable",
+        "message": "Historical live positions are unavailable for the configured live provider.",
+        "provider": "adsbx",
+    }
+    db_session.close()
+
+
 def test_nearby_flights_enqueues_missing_registry_for_background_enrichment():
-    fake_client = FakeOpenSkyClient(
+    fake_client = FakeLiveFlightProvider(
         flights=[
             FakeFlight(
                 icao24="def456",
@@ -241,7 +368,7 @@ def test_nearby_flights_enqueues_missing_registry_for_background_enrichment():
         east=145.1,
         west=144.8,
         settings=settings,
-        opensky_client=fake_client,
+        live_flight_provider=fake_client,
         enrichment_queue=enrichment_queue,
         db_session=db_session,
     )
@@ -253,7 +380,7 @@ def test_nearby_flights_enqueues_missing_registry_for_background_enrichment():
 
 
 def test_nearby_flights_uses_known_registry_without_enqueuing_existing_aircraft():
-    fake_client = FakeOpenSkyClient(
+    fake_client = FakeLiveFlightProvider(
         flights=[
             FakeFlight(
                 icao24="abc123",
@@ -297,7 +424,7 @@ def test_nearby_flights_uses_known_registry_without_enqueuing_existing_aircraft(
         east=145.1,
         west=144.8,
         settings=settings,
-        opensky_client=fake_client,
+        live_flight_provider=fake_client,
         enrichment_queue=enrichment_queue,
         db_session=db_session,
     )
@@ -309,7 +436,7 @@ def test_nearby_flights_uses_known_registry_without_enqueuing_existing_aircraft(
 
 
 def test_nearby_flights_returns_unknown_aircraft_without_blocking():
-    fake_client = FakeOpenSkyClient(
+    fake_client = FakeLiveFlightProvider(
         flights=[
             FakeFlight(
                 icao24="broken1",
@@ -336,7 +463,7 @@ def test_nearby_flights_returns_unknown_aircraft_without_blocking():
         east=145.1,
         west=144.8,
         settings=settings,
-        opensky_client=fake_client,
+        live_flight_provider=fake_client,
         enrichment_queue=enrichment_queue,
         db_session=db_session,
     )
@@ -345,3 +472,50 @@ def test_nearby_flights_returns_unknown_aircraft_without_blocking():
     assert response[0].display_type is None
     assert db_session.get(AircraftRegistry, "broken1") is None
     db_session.close()
+
+
+def test_live_flight_capabilities_reports_opensky_support_with_credentials():
+    capabilities = get_live_flight_capabilities(
+        live_flight_provider=FakeLiveFlightProvider(),
+    )
+
+    assert capabilities.provider == "opensky"
+    assert capabilities.supports_history is True
+    assert capabilities.max_history_minutes == 60
+    assert capabilities.history_step_minutes == 1
+
+
+def test_live_flight_capabilities_reports_opensky_without_history_support():
+    capabilities = get_live_flight_capabilities(
+        live_flight_provider=FakeLiveFlightProvider(
+            capabilities=LiveFlightCapabilities(
+                provider="opensky",
+                supports_history=False,
+                max_history_minutes=0,
+                history_step_minutes=1,
+            )
+        ),
+    )
+
+    assert capabilities.provider == "opensky"
+    assert capabilities.supports_history is False
+    assert capabilities.max_history_minutes == 0
+    assert capabilities.history_step_minutes == 1
+
+
+def test_live_flight_capabilities_reports_adsbx_without_history_support():
+    capabilities = get_live_flight_capabilities(
+        live_flight_provider=FakeLiveFlightProvider(
+            capabilities=LiveFlightCapabilities(
+                provider="adsbx",
+                supports_history=False,
+                max_history_minutes=0,
+                history_step_minutes=1,
+            )
+        ),
+    )
+
+    assert capabilities.provider == "adsbx"
+    assert capabilities.supports_history is False
+    assert capabilities.max_history_minutes == 0
+    assert capabilities.history_step_minutes == 1

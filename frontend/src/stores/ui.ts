@@ -8,6 +8,7 @@ export type LocationMode = "auto" | "manual";
 export const useUiStore = defineStore("ui", () => {
   const mode = ref<AppMode>("live");
   const view = ref<AppView>("map");
+  const liveTimeShiftMinutes = ref(0);
   const reportFlight = ref<ApiLiveFlight | null>(null);
   const selectedLogId = ref<number | null>(null);
   const filtersOpen = ref(false);
@@ -27,6 +28,7 @@ export const useUiStore = defineStore("ui", () => {
 
   return {
     filtersOpen,
+    liveTimeShiftMinutes,
     locationMode,
     manualLocationOpen,
     mode,

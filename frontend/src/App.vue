@@ -7,6 +7,7 @@ import FiltersSheet from "@/components/FiltersSheet.vue";
 import FlightListPanel from "@/components/FlightListPanel.vue";
 import FloatingControls from "@/components/FloatingControls.vue";
 import LoggedFlightDetailDrawer from "@/components/LoggedFlightDetailDrawer.vue";
+import LiveTimeShiftBar from "@/components/LiveTimeShiftBar.vue";
 import ManualLocationSheet from "@/components/ManualLocationSheet.vue";
 import MapShell from "@/components/MapShell.vue";
 import ReportFlightModal from "@/components/ReportFlightModal.vue";
@@ -35,6 +36,16 @@ const selectedLoggedFlight = computed(() => logsStore.byId(uiStore.selectedLogId
 const modeLabel = computed(() => (uiStore.mode === "live" ? "Filters" : "Time window"));
 const manualLocationActive = computed(() => uiStore.manualLocationOpen && uiStore.view === "map" && manualLocationSelecting.value);
 const currentViewportCenter = computed(() => mapStore.viewportCenter ?? mapStore.center);
+const liveTimeShiftDisabled = computed(() => !flightsStore.liveCapabilities.supports_history);
+const liveTimeShiftHelperText = computed(() => {
+  if (flightsStore.isLoadingCapabilities) {
+    return "Checking time-shift availability...";
+  }
+  if (!flightsStore.liveCapabilities.supports_history) {
+    return "Time shift unavailable for the current live provider.";
+  }
+  return `Showing flights from ${uiStore.liveTimeShiftMinutes === 0 ? "now" : `${uiStore.liveTimeShiftMinutes} min ago`}.`;
+});
 const locationSettingsDisplayLocation = computed(() => {
   if (uiStore.locationMode === "auto") {
     return mapStore.userLocation ?? mapStore.center;
@@ -179,12 +190,18 @@ function handleSelectLog(flightId: number): void {
   }
 }
 
+function handleLiveTimeShiftUpdate(value: number): void {
+  uiStore.liveTimeShiftMinutes = value;
+  scheduleRefresh("manual");
+}
+
 onMounted(async () => {
   identityStore.ensureIdentity();
   syncWindowActivity();
   window.addEventListener("focus", syncWindowActivity);
   window.addEventListener("blur", syncWindowActivity);
   document.addEventListener("visibilitychange", syncWindowActivity);
+  await flightsStore.loadCapabilities();
   try {
     await mapStore.requestUserLocation();
     uiStore.locationMode = "auto";
@@ -304,6 +321,14 @@ onBeforeUnmount(() => {
       v-if="uiStore.view === 'map'"
       :flight="selectedLoggedFlight"
       @close="uiStore.selectedLogId = null"
+    />
+
+    <LiveTimeShiftBar
+      v-if="uiStore.mode === 'live'"
+      :value="uiStore.liveTimeShiftMinutes"
+      :disabled="liveTimeShiftDisabled"
+      :helper-text="liveTimeShiftHelperText"
+      @update:value="handleLiveTimeShiftUpdate"
     />
 
     <BottomModeNav :mode="uiStore.mode" @update:mode="uiStore.mode = $event" />

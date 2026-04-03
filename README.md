@@ -18,7 +18,7 @@ The easiest debug workflow is Docker Compose. It starts:
 
 From the repo root:
 
-Create a local `.env` file first if you want OpenSky credentials loaded into Docker Compose:
+Create a local `.env` file first if you want live-flight provider credentials loaded into Docker Compose:
 
 ```bash
 cp .env.example .env
@@ -27,8 +27,13 @@ cp .env.example .env
 Then set:
 
 ```dotenv
+LIVE_FLIGHT_PROVIDER=opensky
 OPENSKY_CLIENT_ID=your-client-id
 OPENSKY_CLIENT_SECRET=your-client-secret
+# For ADS-B Exchange instead:
+# LIVE_FLIGHT_PROVIDER=adsbx
+# ADSBX_API_KEY=your-api-key
+# ADSBX_API_BASE_URL=https://adsbexchange.com/api/aircraft
 ```
 
 Then start the stack:
@@ -42,7 +47,7 @@ Debug behavior in this setup:
 - The backend runs with `uvicorn --reload`
 - The frontend runs with the Vite dev server
 - Source folders are mounted into the containers, so code changes are picked up without rebuilding
-- Docker Compose reads OpenSky credentials from the repo-root `.env` file if present
+- Docker Compose reads live-flight provider settings from the repo-root `.env` file if present
 
 ## Open The App
 
@@ -88,11 +93,20 @@ export DATABASE_URL='mysql+mysqlconnector://flightuser:flightpass@127.0.0.1:3306
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Optional env vars for better live-flight access:
+Optional env vars for live-flight provider access:
 
 ```bash
+export LIVE_FLIGHT_PROVIDER='opensky'
 export OPENSKY_CLIENT_ID='your-client-id'
 export OPENSKY_CLIENT_SECRET='your-client-secret'
+```
+
+Or for ADS-B Exchange:
+
+```bash
+export LIVE_FLIGHT_PROVIDER='adsbx'
+export ADSBX_API_KEY='your-api-key'
+export ADSBX_API_BASE_URL='https://adsbexchange.com/api/aircraft'
 ```
 
 ### 3. Run The Frontend Locally

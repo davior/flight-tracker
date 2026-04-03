@@ -1,4 +1,4 @@
-import { ApiError, fetchLiveFlights, fetchLoggedFlights } from "@/lib/api";
+import { ApiError, fetchLiveFlightCapabilities, fetchLiveFlights, fetchLoggedFlights } from "@/lib/api";
 
 describe("fetchLiveFlights", () => {
   afterEach(() => {
@@ -10,7 +10,9 @@ describe("fetchLiveFlights", () => {
       new Response(
         JSON.stringify({
           detail: {
-            code: "opensky_unavailable",
+            code: "live_provider_unavailable",
+            provider: "opensky",
+            reason: "rate_limited",
             message: "OpenSky responded with status 429",
           },
         }),
@@ -31,12 +33,15 @@ describe("fetchLiveFlights", () => {
           east: 145.1,
           west: 144.8,
         },
+        timeShiftMinutes: 0,
       }),
     ).rejects.toMatchObject<ApiError>({
       status: 502,
       message: "OpenSky responded with status 429",
       detail: {
-        code: "opensky_unavailable",
+        code: "live_provider_unavailable",
+        provider: "opensky",
+        reason: "rate_limited",
         message: "OpenSky responded with status 429",
       },
     });
@@ -60,6 +65,7 @@ describe("fetchLiveFlights", () => {
           east: 145.1,
           west: 144.8,
         },
+        timeShiftMinutes: 0,
       }),
     ).rejects.toMatchObject<ApiError>({
       status: 502,
@@ -84,12 +90,41 @@ describe("fetchLiveFlights", () => {
         east: 145.1,
         west: 144.8,
       },
+      timeShiftMinutes: 30,
     });
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      "/api/flights/nearby?north=-37.7&south=-37.9&east=145.1&west=144.8",
+      "/api/flights/nearby?north=-37.7&south=-37.9&east=145.1&west=144.8&time_shift_minutes=30",
       expect.any(Object),
     );
+  });
+
+  it("fetches live-flight capabilities", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          provider: "opensky",
+          supports_history: true,
+          max_history_minutes: 60,
+          history_step_minutes: 1,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+
+    await expect(fetchLiveFlightCapabilities()).resolves.toEqual({
+      provider: "opensky",
+      supports_history: true,
+      max_history_minutes: 60,
+      history_step_minutes: 1,
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith("/api/flights/capabilities", expect.any(Object));
   });
 });
 

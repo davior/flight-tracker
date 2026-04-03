@@ -1,39 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import requests
 
 from app.config import Settings
+from app.services.live_flight_provider import LiveFlightCapabilities, LiveFlightProviderError, LiveFlightRecord
 from app.utils.geo import center_from_bounds, haversine_distance_km
 
 
 TOKEN_URL = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
 STATES_URL = "https://opensky-network.org/api/states/all"
 TOKEN_REFRESH_MARGIN = 30
+MAX_HISTORY_MINUTES = 60
+HISTORY_STEP_MINUTES = 1
 
 
-class OpenSkyError(RuntimeError):
-    """Raised when the OpenSky API cannot be queried safely."""
-
-
-@dataclass(slots=True)
-class NearbyFlight:
-    icao24: str
-    callsign: str | None
-    origin_country: str | None
-    latitude: float
-    longitude: float
-    altitude: float | None
-    velocity: float | None
-    heading: float | None
-    vertical_rate: float | None
-    last_contact: int | None
-    distance_km: float
-
-
-class OpenSkyClient:
+class OpenSkyLiveFlightProvider:
     def __init__(self, settings: Settings, session: requests.Session | None = None):
         self.settings = settings
         self.session = session or requests.Session()
@@ -43,18 +26,37 @@ class OpenSkyClient:
     def close(self) -> None:
         self.session.close()
 
-    def get_flights_in_bounds(self, north: float, south: float, east: float, west: float) -> list[NearbyFlight]:
-        center_lat, center_lon = center_from_bounds(north, south, east, west)
-        payload = self._fetch_states(
-            {
-                "lamin": south,
-                "lomin": west,
-                "lamax": north,
-                "lomax": east,
-            }
+    @property
+    def capabilities(self) -> LiveFlightCapabilities:
+        supports_history = bool(self.settings.opensky_client_id and self.settings.opensky_client_secret)
+        return LiveFlightCapabilities(
+            provider="opensky",
+            supports_history=supports_history,
+            max_history_minutes=MAX_HISTORY_MINUTES if supports_history else 0,
+            history_step_minutes=HISTORY_STEP_MINUTES,
         )
 
-        flights: list[NearbyFlight] = []
+    def get_flights_in_bounds(
+        self,
+        north: float,
+        south: float,
+        east: float,
+        west: float,
+        time_seconds: int | None = None,
+    ) -> list[LiveFlightRecord]:
+        center_lat, center_lon = center_from_bounds(north, south, east, west)
+        params: dict[str, float | int] = {
+            "lamin": south,
+            "lomin": west,
+            "lamax": north,
+            "lomax": east,
+        }
+        if time_seconds is not None:
+            params["time"] = time_seconds
+
+        payload = self._fetch_states(params)
+
+        flights: list[LiveFlightRecord] = []
         for state in payload.get("states") or []:
             parsed = self._parse_state(state, center_lat, center_lon)
             if parsed is not None:
@@ -63,12 +65,17 @@ class OpenSkyClient:
         flights.sort(key=lambda item: item.distance_km)
         return flights
 
-    def _fetch_states(self, params: dict[str, float]) -> dict:
+    def _fetch_states(self, params: dict[str, float | int]) -> dict:
         headers = self._build_headers()
         try:
             response = self.session.get(STATES_URL, params=params, headers=headers, timeout=15)
         except requests.RequestException as exc:
-            raise OpenSkyError("OpenSky request failed") from exc
+            raise LiveFlightProviderError(
+                "OpenSky request failed",
+                code="provider_unavailable",
+                provider="opensky",
+                retryable=True,
+            ) from exc
 
         if response.status_code == 401 and self.settings.opensky_client_id and self.settings.opensky_client_secret:
             self._refresh_token(force=True)
@@ -76,15 +83,44 @@ class OpenSkyClient:
             try:
                 response = self.session.get(STATES_URL, params=params, headers=headers, timeout=15)
             except requests.RequestException as exc:
-                raise OpenSkyError("OpenSky request failed") from exc
+                raise LiveFlightProviderError(
+                    "OpenSky request failed",
+                    code="provider_unavailable",
+                    provider="opensky",
+                    retryable=True,
+                ) from exc
 
+        if response.status_code == 429:
+            raise LiveFlightProviderError(
+                "OpenSky responded with status 429",
+                code="rate_limited",
+                provider="opensky",
+                retryable=True,
+            )
+        if response.status_code == 401:
+            raise LiveFlightProviderError(
+                "OpenSky authentication failed",
+                code="authentication_failed",
+                provider="opensky",
+                retryable=False,
+            )
         if response.status_code != 200:
-            raise OpenSkyError(f"OpenSky responded with status {response.status_code}")
+            raise LiveFlightProviderError(
+                f"OpenSky responded with status {response.status_code}",
+                code="provider_unavailable",
+                provider="opensky",
+                retryable=response.status_code >= 500,
+            )
 
         try:
             return response.json()
         except ValueError as exc:
-            raise OpenSkyError("OpenSky returned invalid JSON") from exc
+            raise LiveFlightProviderError(
+                "OpenSky returned invalid JSON",
+                code="invalid_response",
+                provider="opensky",
+                retryable=False,
+            ) from exc
 
     def _build_headers(self) -> dict[str, str]:
         token = self._get_token()
@@ -122,19 +158,39 @@ class OpenSkyClient:
                 timeout=15,
             )
         except requests.RequestException as exc:
-            raise OpenSkyError("OpenSky authentication failed") from exc
+            raise LiveFlightProviderError(
+                "OpenSky authentication failed",
+                code="authentication_failed",
+                provider="opensky",
+                retryable=False,
+            ) from exc
 
         if response.status_code != 200:
-            raise OpenSkyError(f"OpenSky authentication failed with status {response.status_code}")
+            raise LiveFlightProviderError(
+                f"OpenSky authentication failed with status {response.status_code}",
+                code="authentication_failed",
+                provider="opensky",
+                retryable=False,
+            )
 
         try:
             data = response.json()
         except ValueError as exc:
-            raise OpenSkyError("OpenSky authentication returned invalid JSON") from exc
+            raise LiveFlightProviderError(
+                "OpenSky authentication returned invalid JSON",
+                code="invalid_response",
+                provider="opensky",
+                retryable=False,
+            ) from exc
 
         access_token = data.get("access_token")
         if not access_token:
-            raise OpenSkyError("OpenSky authentication response did not contain an access token")
+            raise LiveFlightProviderError(
+                "OpenSky authentication response did not contain an access token",
+                code="invalid_response",
+                provider="opensky",
+                retryable=False,
+            )
 
         expires_in = int(data.get("expires_in", 1800))
         self._token = access_token
@@ -148,7 +204,7 @@ class OpenSkyClient:
         state: list,
         origin_lat: float,
         origin_lon: float,
-    ) -> NearbyFlight | None:
+    ) -> LiveFlightRecord | None:
         if len(state) < 17:
             return None
 
@@ -164,7 +220,7 @@ class OpenSkyClient:
         geo_altitude = state[13] if len(state) > 13 else None
         altitude = geo_altitude if geo_altitude is not None else baro_altitude
 
-        return NearbyFlight(
+        return LiveFlightRecord(
             icao24=str(state[0]).lower(),
             callsign=callsign or None,
             origin_country=state[2],
@@ -177,3 +233,6 @@ class OpenSkyClient:
             last_contact=int(state[4]) if state[4] is not None else None,
             distance_km=round(distance, 3),
         )
+
+
+OpenSkyClient = OpenSkyLiveFlightProvider

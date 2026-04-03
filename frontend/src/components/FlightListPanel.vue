@@ -19,7 +19,7 @@ defineEmits<{
 </script>
 
 <template>
-  <section class="relative h-full overflow-y-auto px-4 pb-28 pt-20 md:px-6">
+  <section class="relative h-full overflow-y-auto px-4 pt-20 md:px-6" :class="mode === 'live' ? 'pb-48' : 'pb-28'">
     <div class="mx-auto flex max-w-4xl flex-col gap-3">
       <template v-if="mode === 'live'">
         <article

@@ -13,7 +13,7 @@ from app.services.aircraft_enrichment import AircraftEnrichmentService
 from app.services.aircraft_categories import seed_aircraft_categories
 from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
 from app.services.image_storage import ImageStorageService
-from app.services.opensky import OpenSkyClient
+from app.services.live_flight_provider_factory import create_live_flight_provider
 
 
 def create_app(settings_override: Settings | None = None) -> FastAPI:
@@ -28,7 +28,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         app.state.settings = settings
         app.state.engine = engine
         app.state.session_maker = session_maker
-        app.state.opensky_client = OpenSkyClient(settings)
+        app.state.live_flight_provider = create_live_flight_provider(settings)
         app.state.enrichment_service = AircraftEnrichmentService(settings)
         app.state.enrichment_queue = AircraftEnrichmentQueue(session_maker, app.state.enrichment_service)
         app.state.image_storage = ImageStorageService(settings.upload_dir)
@@ -61,7 +61,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
                 except asyncio.CancelledError:
                     pass
             await app.state.enrichment_queue.stop()
-            app.state.opensky_client.close()
+            app.state.live_flight_provider.close()
             app.state.enrichment_service.close()
             engine.dispose()
 

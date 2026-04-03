@@ -1,4 +1,12 @@
-import type { ApiCreatedLog, ApiLiveFlight, ApiLoggedFlight, CreateLogFields, MapBounds, TimeWindow } from "@/types/api";
+import type {
+  ApiCreatedLog,
+  ApiLiveFlight,
+  ApiLiveFlightCapabilities,
+  ApiLoggedFlight,
+  CreateLogFields,
+  MapBounds,
+  TimeWindow,
+} from "@/types/api";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
@@ -67,14 +75,20 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function fetchLiveFlights(params: {
   bounds: MapBounds;
+  timeShiftMinutes: number;
 }): Promise<ApiLiveFlight[]> {
   const search = new URLSearchParams({
     north: params.bounds.north.toString(),
     south: params.bounds.south.toString(),
     east: params.bounds.east.toString(),
     west: params.bounds.west.toString(),
+    time_shift_minutes: params.timeShiftMinutes.toString(),
   });
   return fetchJson<ApiLiveFlight[]>(`/flights/nearby?${search.toString()}`);
+}
+
+export async function fetchLiveFlightCapabilities(): Promise<ApiLiveFlightCapabilities> {
+  return fetchJson<ApiLiveFlightCapabilities>("/flights/capabilities");
 }
 
 export async function fetchLoggedFlights(params: {

@@ -6,15 +6,15 @@ from app.config import Settings
 from app.services.aircraft_enrichment import AircraftEnrichmentService
 from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
 from app.services.image_storage import ImageStorageService
-from app.services.opensky import OpenSkyClient
+from app.services.live_flight_provider import LiveFlightProvider
 
 
 def get_app_settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
-def get_opensky_client(request: Request) -> OpenSkyClient:
-    return request.app.state.opensky_client
+def get_live_flight_provider(request: Request) -> LiveFlightProvider:
+    return request.app.state.live_flight_provider
 
 
 def get_enrichment_service(request: Request) -> AircraftEnrichmentService:

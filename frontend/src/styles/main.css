@@ -3,8 +3,8 @@
 
 :root {
   color-scheme: light;
-  --panel: rgba(250, 248, 242, 0.92);
-  --panel-strong: rgba(255, 252, 245, 0.98);
+  --panel: rgba(250, 248, 242, 0.26);
+  --panel-strong: rgba(255, 252, 245, 0.40);
   --border: rgba(18, 28, 38, 0.12);
   --ink: #112031;
   --muted: #5a6b79;
@@ -36,15 +36,28 @@ body {
   overflow: hidden;
 }
 
-button,
 input,
 textarea,
 select {
   font: inherit;
+  background: rgba(255, 252, 245, 0.18);
+  border: 1px solid rgba(17, 32, 49, 0.12);
+  box-shadow: 0 10px 24px rgba(17, 32, 49, 0.08);
+  color: var(--ink);
+}
+
+button {
+  font: inherit;
+  color: var(--ink);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(90, 107, 121, 0.88);
 }
 
 .glass-panel {
-  backdrop-filter: blur(22px);
+  backdrop-filter: blur(15px);
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: 0 24px 60px rgba(17, 32, 49, 0.16);
@@ -58,7 +71,7 @@ select {
 
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
-  background: rgba(255, 252, 245, 0.98);
+  background: rgba(255, 252, 245, 0.75);
   color: var(--ink);
 }
 
@@ -76,7 +89,7 @@ select {
 .location-target::after {
   content: "";
   position: absolute;
-  background: rgba(217, 48, 37, 0.92);
+  background: rgba(217, 48, 37, 0.66);
   border-radius: 999px;
 }
 
@@ -99,9 +112,9 @@ select {
 .location-target__ring {
   position: absolute;
   inset: 0.5rem;
-  border: 0.22rem solid rgba(217, 48, 37, 0.96);
+  border: 0.22rem solid rgba(217, 48, 37, 0.75);
   border-radius: 999px;
-  box-shadow: 0 0 0 0.3rem rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 0.3rem rgba(255, 255, 255, 0.8);
 }
 
 .location-target__dot {
@@ -113,7 +126,7 @@ select {
   transform: translate(-50%, -50%);
   border-radius: 999px;
   background: #d93025;
-  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.8);
 }
 
 .location-target--selection {
@@ -186,7 +199,7 @@ select {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.75);
   border: 0.12rem solid rgba(17, 32, 49, 0.12);
   box-shadow:
     0 10px 22px rgba(17, 32, 49, 0.24),
@@ -199,4 +212,52 @@ select {
   fill: var(--live);
   transform: rotate(var(--flight-heading, 0deg));
   transform-origin: center;
+}
+
+.time-shift-slider {
+  appearance: none;
+  height: 1.4rem;
+  background: transparent;
+}
+
+.time-shift-panel {
+  background: rgba(250, 248, 242, 0.26);
+}
+
+.time-shift-slider::-webkit-slider-runnable-track {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(27, 108, 168, 0.2), rgba(27, 108, 168, 0.6));
+}
+
+.time-shift-slider::-moz-range-track {
+  height: 0.4rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(27, 108, 168, 0.2), rgba(27, 108, 168, 0.6));
+}
+
+.time-shift-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.3rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.92);
+}
+
+.time-shift-slider::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.92);
+}
+
+.time-shift-slider:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }

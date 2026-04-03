@@ -14,14 +14,14 @@ defineEmits<{
   <div class="glass-panel absolute left-3 top-3 z-[900] flex rounded-full p-1">
     <button
       class="rounded-full px-4 py-2 text-sm font-medium"
-      :class="view === 'map' ? 'bg-[var(--ink)] text-white' : 'text-[var(--muted)]'"
+      :class="view === 'map' ? 'bg-[var(--ink)] !text-white' : 'text-[var(--muted)]'"
       @click="$emit('update:view', 'map')"
     >
       Map
     </button>
     <button
       class="rounded-full px-4 py-2 text-sm font-medium"
-      :class="view === 'list' ? 'bg-[var(--ink)] text-white' : 'text-[var(--muted)]'"
+      :class="view === 'list' ? 'bg-[var(--ink)] !text-white' : 'text-[var(--muted)]'"
       @click="$emit('update:view', 'list')"
     >
       List
