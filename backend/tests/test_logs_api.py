@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -84,6 +85,7 @@ def test_create_log_without_photos(settings):
     assert response.note == "spotted"
     assert response.photos == []
     assert response.aircraft_registry is None
+    assert response.flight_time == response.created_at
     assert response.owner_uuid is None
 
     db_session.close()
@@ -119,6 +121,7 @@ def test_create_log_with_single_photo_and_enrichment(settings):
     assert saved_path.exists()
     assert response.aircraft_registry.registration == "VH-ABC"
     assert response.photos[0].url == f"/photos/{response.photos[0].id}"
+    assert response.flight_time == response.created_at
     assert response.owner_uuid == "test-user-1"
 
     db_session.close()
@@ -204,6 +207,29 @@ def test_create_log_rejects_bad_icao24():
     assert "icao24" in str(exc_info.value)
 
 
+def test_create_log_persists_provided_flight_time(settings):
+    db_session = make_db_session(settings)
+    flight_time = datetime(2026, 3, 28, 8, 45, tzinfo=timezone.utc)
+    payload = FlightLogCreate(icao24="ABC123", flight_time=flight_time, note="historical")
+
+    async def run():
+        return await create_log(
+            payload=payload,
+            photos=None,
+            db_session=db_session,
+            enrichment_service=FakeEnrichmentService(),
+            image_storage=ImageStorageService(settings.upload_dir),
+        )
+
+    response = asyncio.run(run())
+
+    assert response.flight_time.replace(tzinfo=timezone.utc) == flight_time
+    persisted = db_session.get(FlightLog, response.id)
+    assert persisted is not None
+    assert persisted.flight_time.replace(tzinfo=timezone.utc) == flight_time
+    db_session.close()
+
+
 def test_get_nearby_logs_returns_distance_and_owner(settings):
     db_session = make_db_session(settings)
     db_session.add(
@@ -240,7 +266,7 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
         south=-37.9,
         east=145.1,
         west=144.8,
-        time_window="1d",
+        time_window_days=1.0,
         viewer_uuid="viewer-1",
         settings=settings,
         db_session=db_session,
@@ -253,6 +279,7 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
     assert results[0].category_label == "Light"
     assert results[0].photos[0].url == f"/photos/{results[0].photos[0].id}"
     assert results[0].distance_km > 0
+    assert results[0].flight_time == log.flight_time
 
     db_session.close()
 
@@ -273,13 +300,51 @@ def test_get_nearby_logs_excludes_points_outside_bounds(settings):
         south=-37.9,
         east=145.1,
         west=144.8,
-        time_window="1d",
+        time_window_days=1.0,
         viewer_uuid="viewer-1",
         settings=settings,
         db_session=db_session,
     )
 
     assert results == []
+    db_session.close()
+
+
+def test_get_nearby_logs_filters_by_flight_time(settings):
+    db_session = make_db_session(settings)
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        FlightLog(
+            icao24="recent1",
+            created_at=now,
+            flight_time=now - timedelta(hours=2),
+            aircraft_latitude=-37.810000,
+            aircraft_longitude=144.965000,
+        )
+    )
+    db_session.add(
+        FlightLog(
+            icao24="recent2",
+            created_at=now - timedelta(days=2),
+            flight_time=now - timedelta(hours=1),
+            aircraft_latitude=-37.810000,
+            aircraft_longitude=144.965000,
+        )
+    )
+    db_session.commit()
+
+    results = get_nearby_logs(
+        north=-37.7,
+        south=-37.9,
+        east=145.1,
+        west=144.8,
+        time_window_days=0.5,
+        viewer_uuid="viewer-1",
+        settings=settings,
+        db_session=db_session,
+    )
+
+    assert [item.icao24 for item in results] == ["recent2", "recent1"]
     db_session.close()
 
 
@@ -292,7 +357,7 @@ def test_get_nearby_logs_rejects_invalid_bounds(settings):
             south=-37.7,
             east=145.1,
             west=144.8,
-            time_window="1d",
+            time_window_days=1.0,
             viewer_uuid="viewer-1",
             settings=settings,
             db_session=db_session,
@@ -300,6 +365,62 @@ def test_get_nearby_logs_rejects_invalid_bounds(settings):
 
     assert exc_info.value.status_code == 422
     assert exc_info.value.detail == "south must be less than north"
+    db_session.close()
+
+
+@pytest.mark.parametrize("time_window_days", [0.5, 1.0, 1.5, 28.0])
+def test_get_nearby_logs_accepts_numeric_day_windows(settings, time_window_days: float):
+    db_session = make_db_session(settings)
+
+    log = FlightLog(
+        icao24="abc123",
+        aircraft_latitude=-37.810000,
+        aircraft_longitude=144.965000,
+    )
+    db_session.add(log)
+    db_session.commit()
+
+    results = get_nearby_logs(
+        north=-37.7,
+        south=-37.9,
+        east=145.1,
+        west=144.8,
+        time_window_days=time_window_days,
+        viewer_uuid="viewer-1",
+        settings=settings,
+        db_session=db_session,
+    )
+
+    assert len(results) == 1
+    db_session.close()
+
+
+@pytest.mark.parametrize(
+    ("time_window_days", "message"),
+    [
+        (0.25, "time_window_days must be between 0.5 and 28"),
+        (0.75, "time_window_days must be in 0.5 day increments"),
+        (29.0, "time_window_days must be between 0.5 and 28"),
+        (-1.0, "time_window_days must be between 0.5 and 28"),
+    ],
+)
+def test_get_nearby_logs_rejects_invalid_numeric_day_windows(settings, time_window_days: float, message: str):
+    db_session = make_db_session(settings)
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_nearby_logs(
+            north=-37.7,
+            south=-37.9,
+            east=145.1,
+            west=144.8,
+            time_window_days=time_window_days,
+            viewer_uuid="viewer-1",
+            settings=settings,
+            db_session=db_session,
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == message
     db_session.close()
 
 

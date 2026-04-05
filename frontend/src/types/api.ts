@@ -1,6 +1,6 @@
 export type AppMode = "live" | "logged";
 export type AppView = "map" | "list";
-export type TimeWindow = "3h" | "6h" | "12h" | "1d" | "3d" | "7d" | "14d" | "30d";
+export type LoggedTimeWindowDays = number;
 
 export interface MapBounds {
   north: number;
@@ -59,6 +59,7 @@ export interface ApiLiveFlightCapabilities {
 export interface ApiLoggedFlight {
   id: number;
   created_at: string;
+  flight_time: string;
   icao24: string;
   callsign: string | null;
   note: string | null;
@@ -82,6 +83,7 @@ export interface ApiLoggedFlight {
 export interface ApiCreatedLog {
   id: number;
   created_at: string;
+  flight_time: string;
   icao24: string;
   callsign: string | null;
   origin_country: string | null;
@@ -111,6 +113,7 @@ export interface ApiCreatedLog {
 
 export interface CreateLogFields {
   icao24: string;
+  flight_time?: string;
   callsign?: string | null;
   aircraft_latitude?: number | null;
   aircraft_longitude?: number | null;

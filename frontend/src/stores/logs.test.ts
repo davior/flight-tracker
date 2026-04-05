@@ -18,7 +18,7 @@ describe("useLogsStore", () => {
     const uiStore = useUiStore();
 
     mapStore.setBounds({ north: -37.7, south: -37.9, east: 145.1, west: 144.8 });
-    uiStore.timeWindow = "1d";
+    uiStore.loggedTimeWindowDays = 1;
     identityStore.ensureIdentity();
 
     const fetchLoggedFlightsSpy = vi.spyOn(api, "fetchLoggedFlights").mockResolvedValue([]);
@@ -32,7 +32,7 @@ describe("useLogsStore", () => {
         east: 145.1,
         west: 144.8,
       },
-      timeWindow: "1d",
+      timeWindowDays: 1,
       viewerUuid: expect.any(String),
     });
   });

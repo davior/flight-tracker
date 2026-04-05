@@ -11,7 +11,7 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="glass-panel absolute left-3 top-3 z-[900] flex rounded-full p-1">
+  <div class="glass-panel absolute left-13 top-3 z-[900] flex rounded-full p-1">
     <button
       class="rounded-full px-4 py-2 text-sm font-medium"
       :class="view === 'map' ? 'bg-[var(--ink)] !text-white' : 'text-[var(--muted)]'"

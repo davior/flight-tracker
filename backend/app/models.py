@@ -18,6 +18,7 @@ class FlightLog(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    flight_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     icao24: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
     callsign: Mapped[str | None] = mapped_column(String(16))
     origin_country: Mapped[str | None] = mapped_column(String(64))

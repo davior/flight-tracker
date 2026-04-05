@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-import type { ApiLiveFlight, AppMode, AppView, TimeWindow } from "@/types/api";
+import type { ApiLiveFlight, AppMode, AppView, LoggedTimeWindowDays } from "@/types/api";
 
 export type LocationMode = "auto" | "manual";
 
@@ -9,13 +9,12 @@ export const useUiStore = defineStore("ui", () => {
   const mode = ref<AppMode>("live");
   const view = ref<AppView>("map");
   const liveTimeShiftMinutes = ref(0);
+  const loggedTimeWindowDays = ref<LoggedTimeWindowDays>(1);
   const reportFlight = ref<ApiLiveFlight | null>(null);
   const selectedLogId = ref<number | null>(null);
-  const filtersOpen = ref(false);
   const manualLocationOpen = ref(false);
   const locationMode = ref<LocationMode>("auto");
   const toast = ref<string | null>(null);
-  const timeWindow = ref<TimeWindow>("1d");
 
   function showToast(message: string): void {
     toast.value = message;
@@ -27,15 +26,14 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   return {
-    filtersOpen,
     liveTimeShiftMinutes,
+    loggedTimeWindowDays,
     locationMode,
     manualLocationOpen,
     mode,
     reportFlight,
     selectedLogId,
     showToast,
-    timeWindow,
     toast,
     view,
   };

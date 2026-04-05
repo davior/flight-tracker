@@ -45,6 +45,6 @@ describe("LiveTimeShiftBar", () => {
 
     expect(wrapper.get("input").attributes("disabled")).toBeDefined();
     expect(wrapper.text()).toContain("Unavailable");
-    expect(wrapper.text()).toContain("Time shift unavailable for the current live provider.");
+    expect(wrapper.text()).not.toContain("Time shift unavailable for the current live provider.");
   });
 });

@@ -60,6 +60,7 @@ def serialize_flight_log(
     return FlightLogResponse(
         id=log.id,
         created_at=log.created_at,
+        flight_time=log.flight_time,
         icao24=log.icao24,
         callsign=log.callsign,
         origin_country=log.origin_country,
@@ -117,6 +118,7 @@ def serialize_nearby_log(
     return LoggedFlightNearbyResponse(
         id=log.id,
         created_at=log.created_at,
+        flight_time=log.flight_time,
         icao24=log.icao24,
         callsign=log.callsign,
         note=log.note,

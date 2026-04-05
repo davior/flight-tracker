@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import math
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -8,16 +9,6 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 
 ICAO24_PATTERN = re.compile(r"^[0-9a-fA-F]{6}$")
-TIME_WINDOW_MAP = {
-    "3h": timedelta(hours=3),
-    "6h": timedelta(hours=6),
-    "12h": timedelta(hours=12),
-    "1d": timedelta(days=1),
-    "3d": timedelta(days=3),
-    "7d": timedelta(days=7),
-    "14d": timedelta(days=14),
-    "30d": timedelta(days=30),
-}
 
 
 def normalize_icao24(value: str) -> str:
@@ -47,17 +38,21 @@ def build_display_type(
     return None
 
 
-def parse_time_window(value: str) -> timedelta:
-    window = TIME_WINDOW_MAP.get(value)
-    if window is None:
-        raise ValueError("time_window must be one of 3h, 6h, 12h, 1d, 3d, 7d, 14d, 30d")
-    return window
+def parse_time_window_days(value: float) -> timedelta:
+    if not math.isfinite(value):
+        raise ValueError("time_window_days must be between 0.5 and 28")
+    if value < 0.5 or value > 28:
+        raise ValueError("time_window_days must be between 0.5 and 28")
+    if not math.isclose(value * 2, round(value * 2), rel_tol=0.0, abs_tol=1e-9):
+        raise ValueError("time_window_days must be in 0.5 day increments")
+    return timedelta(days=value)
 
 
 class FlightLogCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     icao24: str
+    flight_time: datetime | None = None
     callsign: str | None = None
     origin_country: str | None = None
     departure_airport: str | None = None
@@ -142,6 +137,7 @@ class FlightLogResponse(BaseModel):
 
     id: int
     created_at: datetime
+    flight_time: datetime
     icao24: str
     callsign: str | None = None
     origin_country: str | None = None
@@ -173,6 +169,7 @@ class FlightLogResponse(BaseModel):
 class LoggedFlightNearbyResponse(BaseModel):
     id: int
     created_at: datetime
+    flight_time: datetime
     icao24: str
     callsign: str | None = None
     note: str | None = None

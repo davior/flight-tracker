@@ -79,7 +79,7 @@ defineEmits<{
               </div>
               <p class="mt-2 line-clamp-2 text-sm text-[var(--muted)]">{{ item.note || "No note added." }}</p>
               <div class="mt-3 flex items-center justify-between text-xs text-[var(--muted)]">
-                <span>{{ formatTimestamp(item.created_at) }}</span>
+                <span>{{ formatTimestamp(item.flight_time) }}</span>
                 <span>{{ item.is_owner ? "Your log" : "Community log" }}</span>
               </div>
             </div>

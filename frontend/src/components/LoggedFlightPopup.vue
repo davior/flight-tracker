@@ -37,7 +37,7 @@ defineEmits<{
     <p class="line-clamp-3 text-sm text-[var(--muted)]">{{ flight.note || "No note added." }}</p>
     <div class="flex items-center justify-between text-xs text-[var(--muted)]">
       <span>{{ formatDistance(flight.distance_km) }}</span>
-      <span>{{ formatTimestamp(flight.created_at) }}</span>
+      <span>{{ formatTimestamp(flight.flight_time) }}</span>
     </div>
     <button
       class="w-full rounded-2xl bg-[var(--logged)] px-4 py-3 font-semibold text-white"

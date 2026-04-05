@@ -71,7 +71,8 @@ textarea::placeholder {
 
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
-  background: rgba(255, 252, 245, 0.75);
+  backdrop-filter: blur(15px);
+  background: rgba(250, 248, 242, 0.26);
   color: var(--ink);
 }
 

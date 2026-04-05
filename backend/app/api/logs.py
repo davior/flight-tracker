@@ -19,7 +19,7 @@ from app.schemas import (
     FlightLogCreate,
     FlightLogResponse,
     LoggedFlightNearbyResponse,
-    parse_time_window,
+    parse_time_window_days,
 )
 from app.services.aircraft_enrichment import AircraftEnrichmentService
 from app.services.aircraft_categories import load_aircraft_category_map, normalize_aircraft_category_code
@@ -31,8 +31,13 @@ router = APIRouter(prefix="/logs", tags=["logs"])
 photo_router = APIRouter(tags=["photos"])
 
 
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 def parse_log_form(
     icao24: str = Form(...),
+    flight_time: str | None = Form(None),
     callsign: str | None = Form(None),
     origin_country: str | None = Form(None),
     departure_airport: str | None = Form(None),
@@ -53,6 +58,7 @@ def parse_log_form(
     try:
         return FlightLogCreate(
             icao24=icao24,
+            flight_time=flight_time,
             callsign=callsign,
             origin_country=origin_country,
             departure_airport=departure_airport,
@@ -89,7 +95,13 @@ async def create_log(
     stored_images = []
     registry = None
     try:
-        flight_log = FlightLog(**payload.model_dump())
+        payload_data = payload.model_dump(exclude_none=True)
+        if "flight_time" not in payload_data:
+            fallback_timestamp = utcnow()
+            payload_data["created_at"] = fallback_timestamp
+            payload_data["flight_time"] = fallback_timestamp
+
+        flight_log = FlightLog(**payload_data)
         db_session.add(flight_log)
         db_session.flush()
 
@@ -131,7 +143,7 @@ def get_nearby_logs(
     south: float = Query(...),
     east: float = Query(...),
     west: float = Query(...),
-    time_window: str = Query("1d"),
+    time_window_days: float = Query(1.0),
     viewer_uuid: str | None = Query(None),
     settings: Settings = Depends(get_app_settings),
     db_session: Session = Depends(get_db),
@@ -147,7 +159,7 @@ def get_nearby_logs(
         )
 
     try:
-        window = parse_time_window(time_window)
+        window = parse_time_window_days(time_window_days)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -155,7 +167,7 @@ def get_nearby_logs(
     logs = db_session.execute(
         select(FlightLog)
         .options(selectinload(FlightLog.photos))
-        .where(FlightLog.created_at >= cutoff)
+        .where(FlightLog.flight_time >= cutoff)
     ).scalars()
     log_items = list(logs)
     center_lat, center_lon = center_from_bounds(north, south, east, west)
@@ -193,7 +205,7 @@ def get_nearby_logs(
             )
         )
 
-    results.sort(key=lambda item: (item.distance_km, -item.created_at.timestamp()))
+    results.sort(key=lambda item: (item.distance_km, -item.flight_time.timestamp()))
     return results
 
 

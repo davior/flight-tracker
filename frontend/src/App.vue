@@ -3,10 +3,10 @@ import type { Map as LeafletMap } from "leaflet";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import BottomModeNav from "@/components/BottomModeNav.vue";
-import FiltersSheet from "@/components/FiltersSheet.vue";
 import FlightListPanel from "@/components/FlightListPanel.vue";
 import FloatingControls from "@/components/FloatingControls.vue";
 import LoggedFlightDetailDrawer from "@/components/LoggedFlightDetailDrawer.vue";
+import LoggedTimeWindowBar from "@/components/LoggedTimeWindowBar.vue";
 import LiveTimeShiftBar from "@/components/LiveTimeShiftBar.vue";
 import ManualLocationSheet from "@/components/ManualLocationSheet.vue";
 import MapShell from "@/components/MapShell.vue";
@@ -33,7 +33,6 @@ const manualLocationSelecting = ref(false);
 const { schedule } = useDebouncedTask(400);
 
 const selectedLoggedFlight = computed(() => logsStore.byId(uiStore.selectedLogId));
-const modeLabel = computed(() => (uiStore.mode === "live" ? "Filters" : "Time window"));
 const manualLocationActive = computed(() => uiStore.manualLocationOpen && uiStore.view === "map" && manualLocationSelecting.value);
 const currentViewportCenter = computed(() => mapStore.viewportCenter ?? mapStore.center);
 const liveTimeShiftDisabled = computed(() => !flightsStore.liveCapabilities.supports_history);
@@ -134,9 +133,13 @@ async function handleReportSubmit(payload: { note: string; files: File[] }): Pro
   try {
     const currentUser = identityStore.ensureIdentity();
     const currentLocation = mapStore.userLocation ?? mapStore.center;
+    const flightTime = uiStore.reportFlight.last_contact
+      ? new Date(uiStore.reportFlight.last_contact * 1000).toISOString()
+      : new Date(Date.now() - uiStore.liveTimeShiftMinutes * 60_000).toISOString();
     await createFlightLog(
       {
         icao24: uiStore.reportFlight.icao24,
+        flight_time: flightTime,
         callsign: uiStore.reportFlight.callsign,
         aircraft_latitude: uiStore.reportFlight.latitude,
         aircraft_longitude: uiStore.reportFlight.longitude,
@@ -195,6 +198,11 @@ function handleLiveTimeShiftUpdate(value: number): void {
   scheduleRefresh("manual");
 }
 
+function handleLoggedTimeWindowUpdate(value: number): void {
+  uiStore.loggedTimeWindowDays = value;
+  scheduleRefresh("manual");
+}
+
 onMounted(async () => {
   identityStore.ensureIdentity();
   syncWindowActivity();
@@ -250,7 +258,7 @@ watch(
 );
 
 watch(
-  () => uiStore.timeWindow,
+  () => uiStore.loggedTimeWindowDays,
   () => {
     if (uiStore.mode === "logged") {
       scheduleRefresh();
@@ -304,10 +312,10 @@ onBeforeUnmount(() => {
 
     <ViewToggle :view="uiStore.view" @update:view="uiStore.view = $event" />
     <FloatingControls
-      :mode-label="modeLabel"
+      :show-filters-button="uiStore.mode === 'live'"
+      button-label="Filters"
       @location="openLocationSettings"
       @refresh="refreshCurrentMode('manual')"
-      @filters="uiStore.filtersOpen = true"
     />
     <div
       v-if="uiStore.mode === 'live' && uiStore.view === 'map' && flightsStore.coverageMessage"
@@ -331,6 +339,12 @@ onBeforeUnmount(() => {
       @update:value="handleLiveTimeShiftUpdate"
     />
 
+    <LoggedTimeWindowBar
+      v-if="uiStore.mode === 'logged'"
+      :value="uiStore.loggedTimeWindowDays"
+      @update:value="handleLoggedTimeWindowUpdate"
+    />
+
     <BottomModeNav :mode="uiStore.mode" @update:mode="uiStore.mode = $event" />
 
     <ReportFlightModal
@@ -350,13 +364,6 @@ onBeforeUnmount(() => {
       @close="closeLocationSettings"
       @submit="handleLocationSettingsSubmit"
       @update-location-mode="setLocationMode"
-    />
-
-    <FiltersSheet
-      :open="uiStore.filtersOpen"
-      :value="uiStore.timeWindow"
-      @close="uiStore.filtersOpen = false"
-      @select="uiStore.timeWindow = $event; uiStore.filtersOpen = false"
     />
   </main>
 </template>

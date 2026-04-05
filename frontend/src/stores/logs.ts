@@ -40,7 +40,7 @@ export const useLogsStore = defineStore("logs", () => {
     try {
       loggedFlights.value = await fetchLoggedFlights({
         bounds: query.bounds,
-        timeWindow: uiStore.timeWindow,
+        timeWindowDays: uiStore.loggedTimeWindowDays,
         viewerUuid: identityStore.ensureIdentity(),
       });
     } catch (nextError) {

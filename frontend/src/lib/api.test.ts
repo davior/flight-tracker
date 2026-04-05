@@ -1,4 +1,4 @@
-import { ApiError, fetchLiveFlightCapabilities, fetchLiveFlights, fetchLoggedFlights } from "@/lib/api";
+import { ApiError, createFlightLog, fetchLiveFlightCapabilities, fetchLiveFlights, fetchLoggedFlights } from "@/lib/api";
 
 describe("fetchLiveFlights", () => {
   afterEach(() => {
@@ -150,13 +150,44 @@ describe("fetchLoggedFlights", () => {
         east: 145.1,
         west: 144.8,
       },
-      timeWindow: "1d",
+      timeWindowDays: 1.5,
       viewerUuid: "viewer-1",
     });
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      "/api/logs/nearby?north=-37.7&south=-37.9&east=145.1&west=144.8&time_window=1d&viewer_uuid=viewer-1",
+      "/api/logs/nearby?north=-37.7&south=-37.9&east=145.1&west=144.8&time_window_days=1.5&viewer_uuid=viewer-1",
       expect.any(Object),
     );
+  });
+});
+
+describe("createFlightLog", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("includes flight_time in the multipart payload", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: 1 }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    await createFlightLog(
+      {
+        icao24: "abc123",
+        owner_uuid: "viewer-1",
+        flight_time: "2026-03-28T10:00:00.000Z",
+      },
+      [],
+    );
+
+    const [, init] = vi.mocked(globalThis.fetch).mock.calls[0];
+    const body = init?.body;
+    expect(body).toBeInstanceOf(FormData);
+    expect((body as FormData).get("flight_time")).toBe("2026-03-28T10:00:00.000Z");
   });
 });

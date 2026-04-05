@@ -4,8 +4,8 @@ import type {
   ApiLiveFlightCapabilities,
   ApiLoggedFlight,
   CreateLogFields,
+  LoggedTimeWindowDays,
   MapBounds,
-  TimeWindow,
 } from "@/types/api";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
@@ -93,7 +93,7 @@ export async function fetchLiveFlightCapabilities(): Promise<ApiLiveFlightCapabi
 
 export async function fetchLoggedFlights(params: {
   bounds: MapBounds;
-  timeWindow: TimeWindow;
+  timeWindowDays: LoggedTimeWindowDays;
   viewerUuid: string;
 }): Promise<ApiLoggedFlight[]> {
   const search = new URLSearchParams({
@@ -101,7 +101,7 @@ export async function fetchLoggedFlights(params: {
     south: params.bounds.south.toString(),
     east: params.bounds.east.toString(),
     west: params.bounds.west.toString(),
-    time_window: params.timeWindow,
+    time_window_days: params.timeWindowDays.toString(),
     viewer_uuid: params.viewerUuid,
   });
   return fetchJson<ApiLoggedFlight[]>(`/logs/nearby?${search.toString()}`);
@@ -117,7 +117,7 @@ export async function createFlightLog(fields: CreateLogFields, files: File[]): P
   });
   files.forEach((file) => formData.append("photos", file));
 
-  return fetchJson<ApiLoggedFlight>("/logs", {
+  return fetchJson<ApiCreatedLog>("/logs", {
     method: "POST",
     body: formData,
   });

@@ -5,7 +5,7 @@ import asyncio
 from collections.abc import Generator
 
 from fastapi import Request
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -46,6 +46,27 @@ async def wait_for_database(engine, max_attempts: int, retry_delay_seconds: floa
 
     if last_error is not None:
         raise last_error
+
+
+def ensure_flight_log_schema(engine) -> None:
+    inspector = inspect(engine)
+    if "flight_logs" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("flight_logs")}
+    if "flight_time" in existing_columns:
+        return
+
+    dialect_name = engine.dialect.name
+    with engine.begin() as connection:
+        if dialect_name == "sqlite":
+            connection.execute(text("ALTER TABLE flight_logs ADD COLUMN flight_time DATETIME"))
+            connection.execute(text("UPDATE flight_logs SET flight_time = created_at WHERE flight_time IS NULL"))
+            return
+
+        connection.execute(text("ALTER TABLE flight_logs ADD COLUMN flight_time DATETIME NULL"))
+        connection.execute(text("UPDATE flight_logs SET flight_time = created_at WHERE flight_time IS NULL"))
+        connection.execute(text("ALTER TABLE flight_logs MODIFY COLUMN flight_time DATETIME NOT NULL"))
 
 
 def get_db(request: Request) -> Generator[Session, None, None]:

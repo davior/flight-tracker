@@ -5,6 +5,6 @@ export function sortLoggedFlightsNearestFirst(logs: ApiLoggedFlight[]): ApiLogge
     if (left.distance_km !== right.distance_km) {
       return left.distance_km - right.distance_km;
     }
-    return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+    return new Date(right.flight_time).getTime() - new Date(left.flight_time).getTime();
   });
 }

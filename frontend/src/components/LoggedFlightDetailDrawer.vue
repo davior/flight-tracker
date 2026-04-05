@@ -19,8 +19,8 @@ defineEmits<{
     class="glass-panel rounded-[2rem] p-5"
     :class="
       inline
-        ? 'm-6 h-[calc(100%-3rem)] overflow-y-auto'
-        : 'absolute inset-x-0 bottom-24 z-[850] mx-3 md:bottom-6 md:left-auto md:right-6 md:top-24 md:w-[24rem] md:overflow-y-auto'
+        ? 'm-6 h-[calc(100%-9rem)] overflow-y-auto'
+        : 'absolute inset-x-0 bottom-53 z-[890] mx-3 md:left-auto md:right-6 md:top-3 md:w-[24rem] md:overflow-y-auto'
     "
     v-if="flight"
   >
@@ -45,8 +45,8 @@ defineEmits<{
         <p class="mt-1 font-semibold">{{ formatDistance(flight.distance_km) }}</p>
       </div>
       <div class="rounded-2xl bg-white/70 p-3">
-        <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Logged</p>
-        <p class="mt-1 font-semibold">{{ formatTimestamp(flight.created_at) }}</p>
+        <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Flight Time</p>
+        <p class="mt-1 font-semibold">{{ formatTimestamp(flight.flight_time) }}</p>
       </div>
       <div class="rounded-2xl bg-white/70 p-3">
         <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Category</p>

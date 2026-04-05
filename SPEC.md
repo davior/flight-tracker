@@ -4,21 +4,28 @@
 
 Flight Logger is a web application that allows users to:
 
-### Log Flights the see
+### View live flights
 1. View aircraft currently near their location
-2. Change the flights they can see based on radius (like 20km, 50km, 100km - default to 20km)
-3. Log a selected flight with contextual information (and a user entered note)
-4. Upload up to 3 photos per log (resized, EXIF preserved)
-5. Store logs in a MariaDB database
-6. Enrich aircraft data using ICAO24 lookup with local caching
+2. Explore live flights in a map view or list view
+3. Query flights using the current map viewport rather than a fixed radius selector
+4. Apply a live time shift from now back to 60 minutes ago
+5. Keep live polling active while respecting the selected time shift
+6. Log a selected live flight with contextual information and a user-entered note
 
 ---
-### View flights logged by others
-1. View logs of flights near their location
-2. Change the radius of the area to view logs in
-3. Change how far back to view flight logs for (number of days from 1 to 30 - default to 1)
-4. Boolean Filter to "Show only my logs"
-5. Edit the log details if they were the person who uploaded it
+### Log and browse flight reports
+1. Upload up to 3 photos per log (resized, EXIF preserved)
+2. Store logs in a MariaDB database
+3. View logs of flights near the visible map area
+4. Filter logged flights by time window
+5. Distinguish community logs from the viewer's own logs
+6. View logged flights in either map or list mode
+
+---
+### Aircraft enrichment and provider support
+1. Enrich aircraft data using ICAO24 lookup with local caching
+2. Support multiple live-flight providers behind a common interface
+3. Expose whether the active live-flight provider supports historical live lookups
 
 ## Tech Stack
 
@@ -30,13 +37,18 @@ Backend:
 * MariaDB
 * Pillow (image processing)
 
-Frontend (later phase):
+Frontend:
 
-* Plain HTML, CSS, JavaScript
+* Vue 3
+* TypeScript
+* Pinia
+* Leaflet
+* Vite
 
 External APIs:
 
-* OpenSky Network (flight positions)
+* OpenSky Network (flight positions, including authenticated historical lookups up to 60 minutes)
+* ADS-B Exchange (current live positions)
 
 ---
 
@@ -130,13 +142,33 @@ Constraints:
 
 Params:
 
-* lat
-* lon
-* radius_km (default 50)
+* north
+* south
+* east
+* west
+* time_shift_minutes (optional, 0-60)
 
 Returns:
 
-* list of aircraft from OpenSky
+* list of aircraft from the configured live-flight provider
+
+Behavior:
+
+* Uses the current visible map bounds
+* Rejects oversized live queries beyond the configured maximum radius
+* For historical live lookups, applies a time shift in minutes from now
+* Historical lookups are only available when the configured provider supports them
+
+---
+
+### GET /flights/capabilities
+
+Returns:
+
+* provider
+* supports_history
+* max_history_minutes
+* history_step_minutes
 
 ---
 
@@ -162,10 +194,22 @@ Behavior:
 
 ---
 
-### GET /logs
+### GET /logs/nearby
 
-* Returns recent logs
-* Includes photo URLs
+Query parameters:
+
+* north
+* south
+* east
+* west
+* time_window_days
+* viewer_uuid
+
+Returns:
+
+* nearby logged flights for the current viewport
+* photo URLs
+* ownership flag for the current viewer
 
 ---
 
@@ -202,15 +246,19 @@ Process:
 * Do not exceed 3 images per log
 * Must handle missing aircraft metadata gracefully
 * Must not crash on failed API calls
+* Live flight lookups must respect the configured maximum nearby radius
+* Live historical lookups are capped at 60 minutes from now
+* Logged-flight filtering is viewport-based, not fixed-radius based
 
 ---
 
 ## Non-Goals (for now)
 
 * Authentication
-* Real-time updates (polling is fine)
 * Full trajectory tracking
-* Complex UI frameworks
+* Persistent storage of live-flight history snapshots
+
+Polling for live updates is an explicit supported behavior.
 
 ---
 
@@ -222,21 +270,21 @@ Process:
 4. Logging endpoint with photo upload
 5. Logs retrieval
 6. Photo serving
-7. Frontend (later)
+7. Map-first frontend with live and logged modes
 
 ---
 
 
 ## Nearby Logged Flights (New Feature)
 
-Users can retrieve previously logged flights near their current location.
+Users can retrieve previously logged flights near the currently visible map area.
 
 ### Query Behavior
 
 Filter logs by:
 
-1. Distance from user location
-2. Time window
+1. Current map bounds
+2. Logged-flight day range
 
 ---
 
@@ -246,30 +294,19 @@ Filter logs by:
 
 Query parameters:
 
-* lat (required)
-* lon (required)
-* radius_km (required, must be one of predefined values)
-* time_window (required)
-
----
-
-## Vabirable Radius Values
- Defined by the interface but allow variable input
-* 20 km
-* 50 km
-* 100 km
-
-Reject other values.
+* north (required)
+* south (required)
+* east (required)
+* west (required)
+* time_window_days (required)
 
 ---
 
 ## Allowed Time Windows
 
-* "1h"   (last 1 hour)
-* "6h"
-* "24h"
-* "7d"
-* "30d"
+* numeric days from `0.5` to `28`
+* increments of `0.5`
+* default `1`
 
 ---
 
@@ -277,8 +314,8 @@ Reject other values.
 
 Return logs where:
 
-* Distance between (lat, lon) and (aircraft_latitude, aircraft_longitude) <= radius_km
-* created_at >= NOW() - time_window
+* The logged aircraft position falls within the requested bounds
+* flight_time >= NOW() - INTERVAL time_window_days DAY
 
 ---
 
@@ -305,6 +342,7 @@ Include:
 
 
 # Folder Layout
+<pre>
 flight-logger/
 ├── backend/
 │   ├── app/
@@ -313,22 +351,30 @@ flight-logger/
 │   │   ├── models.py
 │   │   ├── schemas.py
 │   │   ├── config.py
-│   │   ├── routes/
+│   │   ├── api/
 │   │   │   ├── flights.py
 │   │   │   ├── logs.py
-│   │   │   ├── photos.py
 │   │   ├── services/
-│   │   │   ├── enrichment.py
+│   │   │   ├── aircraft_enrichment.py
+│   │   │   ├── aircraft_enrichment_queue.py
+│   │   │   ├── adsbx.py
+│   │   │   ├── live_flight_provider.py
+│   │   │   ├── live_flight_provider_factory.py
 │   │   │   ├── opensky.py
 │   │   └── utils/
-│   │       ├── image.py
+│   │       ├── geo.py
 │   ├── requirements.txt
 │
 ├── frontend/
 │   ├── index.html
-│   ├── app.js
-│   ├── styles.css
+│   ├── src/
+│   │   ├── App.vue
+│   │   ├── components/
+│   │   ├── lib/
+│   │   ├── stores/
+│   │   └── styles/
 │
 ├── uploads/
 ├── docker-compose.yml
 └── SPEC.md
+</pre>

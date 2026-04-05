@@ -27,14 +27,14 @@ const tickLabels = [
 
 <template>
   <section
-    class="glass-panel time-shift-panel safe-bottom absolute inset-x-0 bottom-24 z-[900] rounded-[1.75rem] px-4 py-3 md:left-[25px] md:right-[25px] md:px-5 md:py-2.5"
+    class="glass-panel time-shift-panel safe-bottom absolute ml-3 mr-3 inset-x-0 bottom-21 z-[900] rounded-[1.75rem] px-4 py-3 md:left-[25px] md:right-[25px] md:px-5 md:py-2.5"
     :class="disabled ? 'opacity-80' : ''"
   >
     <div class="flex items-center justify-between gap-3">
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Time Shift</p>
         <p class="text-sm font-semibold text-[var(--ink)]">
-          {{ props.value === 0 ? "Now" : `${props.value} min ago` }}
+          {{ props.value === 0 ? "Showing flights from now" : `Showing flights from ${props.value} min ago` }}
         </p>
       </div>
       <span
@@ -67,9 +67,5 @@ const tickLabels = [
         {{ tick.label }}
       </span>
     </div>
-
-    <p class="mt-2 text-xs text-[var(--muted)]">
-      {{ helperText }}
-    </p>
   </section>
 </template>
