@@ -34,6 +34,9 @@ backend/.venv/
 backend/.pytest_cache/
 backend/**/__pycache__/
 
+# Alembic - keep migrations, ignore cache
+!backend/alembic/versions/*.py
+
 # Node / frontend
 node_modules/
 frontend/node_modules/

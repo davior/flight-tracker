@@ -150,10 +150,56 @@ npm run test
 npm run build
 ```
 
+## Database Migrations
+
+This project uses Alembic for database schema migrations. Migrations run automatically when the backend starts.
+
+### Common Migration Commands
+
+From the `backend/` directory with the virtual environment activated:
+
+```bash
+# Check current migration status
+python migrate.py current
+
+# View migration history
+python migrate.py history
+
+# Create a new migration (auto-detects model changes)
+python migrate.py create "add user table"
+
+# Manually upgrade to latest
+python migrate.py upgrade
+
+# Downgrade one migration
+python migrate.py downgrade
+
+# Or use alembic directly
+alembic current
+alembic history
+alembic revision --autogenerate -m "migration message"
+alembic upgrade head
+alembic downgrade -1
+```
+
+### Migration Best Practices
+
+1. **Always review auto-generated migrations** before applying them
+2. **Test migrations on a copy of production data** before deploying
+3. **Never edit applied migrations** - create a new one instead
+4. **Commit migrations to version control** alongside model changes
+
+### How Migrations Work
+
+- On startup, the backend automatically runs `alembic upgrade head`
+- This ensures the database schema matches the current codebase
+- For fresh databases, all migrations are applied in order
+- For existing databases, only new migrations are applied
+
 ## Useful Notes
 
 - Uploaded photos are stored in `uploads/`
 - The frontend generates a local UUID and stores it in browser local storage
-- The backend creates tables automatically on startup
+- Database migrations run automatically on backend startup
 - The first aircraft-enrichment lookup may download a local ADS-B snapshot into `/tmp/flight-logger-cache`
 - `.env.example` is safe to commit; keep your real `.env` local and untracked

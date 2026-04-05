@@ -8,7 +8,8 @@ from fastapi import FastAPI
 from app.api.flights import router as flights_router
 from app.api.logs import photo_router, router as logs_router
 from app.config import Settings, get_settings
-from app.db import Base, create_db_engine, create_session_maker, ensure_flight_log_schema, wait_for_database
+from app.db import Base, create_db_engine, create_session_maker, wait_for_database
+from app.migrations import run_migrations
 from app.services.aircraft_enrichment import AircraftEnrichmentService
 from app.services.aircraft_categories import seed_aircraft_categories
 from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
@@ -38,8 +39,10 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             max_attempts=settings.db_startup_max_attempts,
             retry_delay_seconds=settings.db_startup_retry_delay_seconds,
         )
-        Base.metadata.create_all(bind=engine)
-        ensure_flight_log_schema(engine)
+
+        # Run database migrations (or create_all for in-memory test databases)
+        run_migrations(engine)
+
         session = session_maker()
         try:
             seed_aircraft_categories(session)
