@@ -83,6 +83,7 @@ export interface ApiLoggedFlight {
   logger_latitude: number | null;
   logger_longitude: number | null;
   owner_uuid: string | null;
+  heading: number | null;
   type_code: string | null;
   manufacturer: string | null;
   model: string | null;

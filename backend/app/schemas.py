@@ -194,6 +194,7 @@ class LoggedFlightNearbyResponse(BaseModel):
     logger_latitude: Decimal | None = None
     logger_longitude: Decimal | None = None
     owner_uuid: str | None = None
+    heading: float | None = None
     type_code: str | None = None
     manufacturer: str | None = None
     model: str | None = None

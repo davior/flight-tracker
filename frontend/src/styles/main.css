@@ -215,6 +215,23 @@ textarea::placeholder {
   transform-origin: center;
 }
 
+.logged-flight-marker {
+  display: flex;
+  height: 2.125rem;
+  width: 2.125rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.logged-flight-marker__aircraft {
+  width: 1.55rem;
+  height: 1.55rem;
+  fill: var(--logged);
+  filter: drop-shadow(0 4px 8px rgba(17, 32, 49, 0.4));
+  transform: rotate(var(--flight-heading, 0deg));
+  transform-origin: center;
+}
+
 .time-shift-slider {
   appearance: none;
   height: 1.4rem;

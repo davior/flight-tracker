@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LCircleMarker, LPopup } from "@vue-leaflet/vue-leaflet";
+import { LIcon, LMarker, LPopup } from "@vue-leaflet/vue-leaflet";
 
 import LoggedFlightPopup from "@/components/LoggedFlightPopup.vue";
 import { resolveLoggedFlightPoint } from "@/lib/geo";
@@ -10,25 +10,34 @@ defineProps<{
   selectedId: number | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   open: [flightId: number];
+  select: [flightId: number];
 }>();
 </script>
 
 <template>
   <template v-for="flight in flights" :key="flight.id">
-    <LCircleMarker
+    <LMarker
       v-if="resolveLoggedFlightPoint(flight)"
       :lat-lng="[resolveLoggedFlightPoint(flight)!.lat, resolveLoggedFlightPoint(flight)!.lon]"
-      :radius="selectedId === flight.id ? 10 : 8"
-      color="#d9730d"
-      fill-color="#f59e0b"
-      :fill-opacity="0.82"
-      :weight="selectedId === flight.id ? 3 : 2"
+      @click="emit('select', flight.id)"
     >
+      <LIcon :icon-size="[34, 34]" :icon-anchor="[17, 17]" class-name="logged-flight-marker-icon">
+        <div class="logged-flight-marker">
+          <svg
+            class="logged-flight-marker__aircraft"
+            :style="{ '--flight-heading': `${flight.heading ?? 0}deg` }"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d="M12 1L14.6 8.4L20 10.2V12.2L14.25 11.85L13.4 23H10.6L9.75 11.85L4 12.2V10.2L9.4 8.4L12 1Z" />
+          </svg>
+        </div>
+      </LIcon>
       <LPopup>
-        <LoggedFlightPopup :flight="flight" @open="$emit('open', $event)" />
+        <LoggedFlightPopup :flight="flight" @open="emit('open', $event)" />
       </LPopup>
-    </LCircleMarker>
+    </LMarker>
   </template>
 </template>

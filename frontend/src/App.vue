@@ -33,6 +33,7 @@ const manualLocationSelecting = ref(false);
 const { schedule } = useDebouncedTask(400);
 
 const selectedLoggedFlight = computed(() => logsStore.byId(uiStore.selectedLogId));
+const detailLoggedFlight = computed(() => logsStore.byId(uiStore.detailLogId));
 const activeTrajectory = computed(() => {
   if (uiStore.mode === "live") return flightsStore.liveTrajectory;
   return selectedLoggedFlight.value?.trajectory ?? [];
@@ -191,14 +192,12 @@ function handleSelectFlight(icao24: string): void {
   uiStore.selectedFlightIcao24 = icao24;
 }
 
-function handleSelectLog(flightId: number): void {
+function handleHighlightLog(flightId: number): void {
   uiStore.selectedLogId = flightId;
-  if (uiStore.view === "map") {
-    const flight = logsStore.byId(flightId);
-    if (flight?.aircraft_latitude !== null && flight?.aircraft_longitude !== null && mapInstance.value) {
-      mapInstance.value.flyTo([flight.aircraft_latitude, flight.aircraft_longitude], Math.max(mapInstance.value.getZoom(), 12));
-    }
-  }
+}
+
+function handleSelectLog(flightId: number): void {
+  uiStore.detailLogId = flightId;
 }
 
 function handleLiveTimeShiftUpdate(value: number): void {
@@ -301,6 +300,7 @@ onBeforeUnmount(() => {
       @update-bounds="mapStore.setBounds"
       @report="uiStore.reportFlight = $event"
       @select-flight="handleSelectFlight"
+      @highlight-log="handleHighlightLog"
       @select-log="handleSelectLog"
       @ready="handleMapReady"
     />
@@ -311,12 +311,12 @@ onBeforeUnmount(() => {
           :mode="uiStore.mode"
           :live-flights="flightsStore.sortedFlights"
           :logged-flights="logsStore.sortedFlights"
-          :selected-log-id="uiStore.selectedLogId"
+          :selected-log-id="uiStore.detailLogId"
           @report="uiStore.reportFlight = $event"
           @select-log="handleSelectLog"
         />
         <div class="hidden md:block">
-          <LoggedFlightDetailDrawer :flight="selectedLoggedFlight" inline @close="uiStore.selectedLogId = null" />
+          <LoggedFlightDetailDrawer :flight="detailLoggedFlight" inline @close="uiStore.detailLogId = null" />
         </div>
       </div>
     </section>
@@ -338,8 +338,8 @@ onBeforeUnmount(() => {
 
     <LoggedFlightDetailDrawer
       v-if="uiStore.view === 'map'"
-      :flight="selectedLoggedFlight"
-      @close="uiStore.selectedLogId = null"
+      :flight="detailLoggedFlight"
+      @close="uiStore.detailLogId = null"
     />
 
     <LiveTimeShiftBar

@@ -129,6 +129,7 @@ def serialize_nearby_log(
         logger_latitude=log.logger_latitude,
         logger_longitude=log.logger_longitude,
         owner_uuid=log.owner_uuid,
+        heading=log.heading,
         type_code=registry.type_code if registry else None,
         manufacturer=registry.manufacturer if registry else None,
         model=registry.model if registry else None,

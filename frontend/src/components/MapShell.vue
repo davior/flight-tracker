@@ -26,6 +26,7 @@ const emit = defineEmits<{
   report: [flight: ApiLiveFlight];
   selectFlight: [icao24: string];
   selectLog: [flightId: number];
+  highlightLog: [flightId: number];
   updateBounds: [bounds: MapBounds];
   ready: [map: LeafletMap];
 }>();
@@ -145,19 +146,29 @@ watch(
           </div>
         </LIcon>
       </LMarker>
-      <FlightTrajectory v-if="trajectory.length > 0" :points="trajectory" />
-      <LiveFlightMarkers
-        v-if="mode === 'live'"
-        :flights="liveFlights"
-        @report="$emit('report', $event)"
-        @select="$emit('selectFlight', $event)"
-      />
-      <LoggedFlightMarkers
-        v-else
-        :flights="loggedFlights"
-        :selected-id="selectedLogId"
-        @open="$emit('selectLog', $event)"
-      />
+      <template v-if="mode === 'live'">
+        <FlightTrajectory v-if="trajectory.length > 0" :points="trajectory" />
+        <LiveFlightMarkers
+          :flights="liveFlights"
+          @report="$emit('report', $event)"
+          @select="$emit('selectFlight', $event)"
+        />
+      </template>
+      <template v-else>
+        <template v-for="flight in loggedFlights" :key="`trajectory-${flight.id}`">
+          <FlightTrajectory
+            v-if="flight.trajectory && flight.trajectory.length > 0"
+            :points="flight.trajectory"
+            :highlighted="flight.id === selectedLogId"
+          />
+        </template>
+        <LoggedFlightMarkers
+          :flights="loggedFlights"
+          :selected-id="selectedLogId"
+          @select="$emit('highlightLog', $event)"
+          @open="$emit('selectLog', $event)"
+        />
+      </template>
     </LMap>
     <div v-if="manualLocationSelecting" class="pointer-events-none absolute inset-0 z-[850]">
       <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
