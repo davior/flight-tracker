@@ -238,9 +238,7 @@ export const useFlightsStore = defineStore("flights", () => {
     }
     isLoadingTrajectory.value = true;
     try {
-      const result = await fetchFlightTrajectory(icao24, {
-        timeShiftMinutes: effectiveTimeShiftMinutes.value,
-      });
+      const result = await fetchFlightTrajectory(icao24);
       liveTrajectory.value = result.supports_trajectory ? result.points : [];
     } catch {
       liveTrajectory.value = [];

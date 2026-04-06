@@ -7,8 +7,8 @@ from app.services.live_flight_provider import LiveFlightProvider, LiveFlightProv
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MAX_HISTORY_MINUTES = 30
-DEFAULT_STEP_MINUTES = 2
+DEFAULT_MAX_HISTORY_MINUTES = 60
+DEFAULT_STEP_MINUTES = 10
 
 
 def build_trajectory(
