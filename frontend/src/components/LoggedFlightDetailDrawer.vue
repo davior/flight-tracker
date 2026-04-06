@@ -20,7 +20,7 @@ defineEmits<{
     :class="
       inline
         ? 'm-6 h-[calc(100%-9rem)] overflow-y-auto'
-        : 'absolute inset-x-0 bottom-53 z-[890] mx-3 md:left-auto md:right-6 md:top-3 md:w-[24rem] md:overflow-y-auto'
+        : 'absolute inset-x-0 bottom-64 z-[890] mx-3 md:left-auto md:right-6 md:top-3 md:w-[24rem] md:overflow-y-auto'
     "
     v-if="flight"
   >

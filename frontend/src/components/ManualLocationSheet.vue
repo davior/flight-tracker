@@ -98,7 +98,7 @@ watch(
             class="rounded-[1.2rem] px-4 py-3 text-sm font-semibold transition"
             :class="
               locationMode === 'auto'
-                ? 'bg-[var(--accent)] text-white shadow-lg shadow-sky-200/50'
+                ? 'bg-[var(--accent)] !text-white shadow-lg shadow-sky-200/50'
                 : 'bg-white/70 text-[var(--muted)]'
             "
             @click="$emit('updateLocationMode', 'auto')"
@@ -109,7 +109,7 @@ watch(
             class="rounded-[1.2rem] px-4 py-3 text-sm font-semibold transition"
             :class="
               locationMode === 'manual'
-                ? 'bg-[var(--ink)] text-white shadow-lg shadow-slate-300/50'
+                ? 'bg-[var(--ink)] !text-white shadow-lg shadow-slate-300/50'
                 : 'bg-white/70 text-[var(--muted)]'
             "
             @click="$emit('updateLocationMode', 'manual')"
@@ -143,7 +143,7 @@ watch(
         />
       </div>
       <div class="mt-4 grid grid-cols-2 gap-3">
-        <button class="rounded-2xl bg-[var(--ink)] px-4 py-3 font-semibold text-white" @click="submit">
+        <button class="rounded-2xl bg-[var(--ink)] px-4 py-3 font-semibold !text-white" @click="submit">
           Ok
         </button>
         <button class="rounded-2xl bg-white/80 px-4 py-3 font-semibold text-[var(--ink)]" @click="$emit('close')">

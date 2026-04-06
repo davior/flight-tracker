@@ -48,11 +48,20 @@ export function boundsEqual(left: MapBounds, right: MapBounds, epsilon = GEO_EPS
 }
 
 function buildCenteredSquareBounds(center: LatLng, halfSpan: number): MapBounds {
+  const north = Math.min(90, center.lat + halfSpan);
+  const south = Math.max(-90, center.lat - halfSpan);
+  const east = Math.min(180, center.lon + halfSpan);
+  const west = Math.max(-180, center.lon - halfSpan);
+
+  // Ensure bounds are valid (north > south, east > west)
+  // This can happen when zoomed out to extreme latitudes
+  const minSpan = GEO_EPSILON * 2;
+
   return {
-    north: Math.min(90, center.lat + halfSpan),
-    south: Math.max(-90, center.lat - halfSpan),
-    east: Math.min(180, center.lon + halfSpan),
-    west: Math.max(-180, center.lon - halfSpan),
+    north: Math.max(north, south + minSpan),
+    south: Math.min(south, north - minSpan),
+    east: Math.max(east, west + minSpan),
+    west: Math.min(west, east - minSpan),
   };
 }
 

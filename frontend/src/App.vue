@@ -312,8 +312,6 @@ onBeforeUnmount(() => {
 
     <ViewToggle :view="uiStore.view" @update:view="uiStore.view = $event" />
     <FloatingControls
-      :show-filters-button="uiStore.mode === 'live'"
-      button-label="Filters"
       @location="openLocationSettings"
       @refresh="refreshCurrentMode('manual')"
     />

@@ -50,11 +50,28 @@ function emitBounds(map?: LeafletMap): void {
     return;
   }
   const bounds = leafletMap.getBounds();
+  const north = bounds.getNorth();
+  const south = bounds.getSouth();
+  const east = bounds.getEast();
+  const west = bounds.getWest();
+
+  // Validate bounds to prevent north === south or east === west
+  // This can happen when zoomed out to extreme latitudes
+  const minDiff = 0.000001;
+  if (north <= south || east <= west) {
+    console.warn("Invalid map bounds detected, skipping update:", { north, south, east, west });
+    return;
+  }
+
+  // Ensure minimum spacing
+  const validNorth = Math.max(north, south + minDiff);
+  const validEast = Math.max(east, west + minDiff);
+
   emit("updateBounds", {
-    north: bounds.getNorth(),
-    south: bounds.getSouth(),
-    east: bounds.getEast(),
-    west: bounds.getWest(),
+    north: validNorth,
+    south,
+    east: validEast,
+    west,
   });
 }
 
