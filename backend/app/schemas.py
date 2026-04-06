@@ -48,6 +48,21 @@ def parse_time_window_days(value: float) -> timedelta:
     return timedelta(days=value)
 
 
+class TrajectoryPoint(BaseModel):
+    lat: float
+    lng: float
+    altitude: float | None = None
+    heading: float | None = None
+    velocity: float | None = None
+    timestamp: int
+
+
+class TrajectoryResponse(BaseModel):
+    icao24: str
+    supports_trajectory: bool
+    points: list[TrajectoryPoint]
+
+
 class FlightLogCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
@@ -164,6 +179,7 @@ class FlightLogResponse(BaseModel):
     display_type: str | None = None
     photos: list[PhotoResponse]
     aircraft_registry: AircraftRegistryResponse | None = None
+    trajectory: list[TrajectoryPoint] | None = None
 
 
 class LoggedFlightNearbyResponse(BaseModel):
@@ -188,3 +204,4 @@ class LoggedFlightNearbyResponse(BaseModel):
     photos: list[PhotoResponse]
     distance_km: float
     is_owner: bool
+    trajectory: list[TrajectoryPoint] | None = None

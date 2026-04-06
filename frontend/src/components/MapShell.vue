@@ -3,9 +3,10 @@ import { LIcon, LMap, LMarker, LRectangle, LTileLayer } from "@vue-leaflet/vue-l
 import type { Map as LeafletMap } from "leaflet";
 import { computed, nextTick, ref, watch } from "vue";
 
+import FlightTrajectory from "@/components/FlightTrajectory.vue";
 import LoggedFlightMarkers from "@/components/LoggedFlightMarkers.vue";
 import LiveFlightMarkers from "@/components/LiveFlightMarkers.vue";
-import type { ApiLiveFlight, ApiLoggedFlight, AppMode, LatLng, MapBounds } from "@/types/api";
+import type { ApiLiveFlight, ApiLoggedFlight, ApiTrajectoryPoint, AppMode, LatLng, MapBounds } from "@/types/api";
 
 const props = defineProps<{
   center: LatLng | null;
@@ -18,10 +19,12 @@ const props = defineProps<{
   manualLocationSelecting: boolean;
   liveCoverageBounds: MapBounds | null;
   liveCoverageClamped: boolean;
+  trajectory: ApiTrajectoryPoint[];
 }>();
 
 const emit = defineEmits<{
   report: [flight: ApiLiveFlight];
+  selectFlight: [icao24: string];
   selectLog: [flightId: number];
   updateBounds: [bounds: MapBounds];
   ready: [map: LeafletMap];
@@ -142,10 +145,12 @@ watch(
           </div>
         </LIcon>
       </LMarker>
+      <FlightTrajectory v-if="trajectory.length > 0" :points="trajectory" />
       <LiveFlightMarkers
         v-if="mode === 'live'"
         :flights="liveFlights"
         @report="$emit('report', $event)"
+        @select="$emit('selectFlight', $event)"
       />
       <LoggedFlightMarkers
         v-else

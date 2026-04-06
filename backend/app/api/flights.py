@@ -9,16 +9,19 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.dependencies import get_app_settings, get_enrichment_queue, get_live_flight_provider
 from app.models import AircraftRegistry
-from app.schemas import LiveFlightCapabilitiesResponse, NearbyFlightResponse, build_display_type
+from app.schemas import LiveFlightCapabilitiesResponse, NearbyFlightResponse, TrajectoryResponse, build_display_type, normalize_icao24
 from app.services.aircraft_categories import load_aircraft_category_map, resolve_aircraft_category_details
 from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
 from app.services.live_flight_provider import LiveFlightProvider, LiveFlightProviderError
+from app.services.trajectory import build_trajectory
 from app.utils.geo import radius_from_bounds
 
 
 router = APIRouter(prefix="/flights", tags=["flights"])
 MAX_HISTORY_MINUTES = 60
 HISTORY_STEP_MINUTES = 1
+TRAJECTORY_DEFAULT_MAX_HISTORY_MINUTES = 30
+TRAJECTORY_DEFAULT_STEP_MINUTES = 2
 
 
 def resolve_time_shift_seconds(time_shift_minutes: int) -> int | None:
@@ -150,3 +153,45 @@ def get_nearby_flights(
             )
         )
     return enriched
+
+
+@router.get("/{icao24}/trajectory", response_model=TrajectoryResponse)
+def get_flight_trajectory(
+    icao24: str,
+    max_history_minutes: int = Query(default=TRAJECTORY_DEFAULT_MAX_HISTORY_MINUTES, ge=1, le=MAX_HISTORY_MINUTES),
+    step_minutes: int = Query(default=TRAJECTORY_DEFAULT_STEP_MINUTES, ge=1, le=10),
+    time_shift_minutes: int = Query(default=0, ge=0, le=MAX_HISTORY_MINUTES),
+    live_flight_provider: LiveFlightProvider = Depends(get_live_flight_provider),
+) -> TrajectoryResponse:
+    try:
+        normalized = normalize_icao24(icao24)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="icao24 must be a 6-character hexadecimal string")
+
+    capabilities = live_flight_provider.capabilities
+    if not capabilities.supports_history:
+        return TrajectoryResponse(icao24=normalized, supports_trajectory=False, points=[])
+
+    effective_max = min(max_history_minutes, capabilities.max_history_minutes)
+    reference_time = resolve_time_shift_seconds(time_shift_minutes) or int(time.time())
+
+    try:
+        points = build_trajectory(
+            provider=live_flight_provider,
+            icao24=normalized,
+            reference_time=reference_time,
+            max_history_minutes=effective_max,
+            step_minutes=step_minutes,
+        )
+    except LiveFlightProviderError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "live_provider_unavailable",
+                "message": str(exc),
+                "provider": exc.provider,
+                "reason": exc.code,
+            },
+        ) from exc
+
+    return TrajectoryResponse(icao24=normalized, supports_trajectory=True, points=points)

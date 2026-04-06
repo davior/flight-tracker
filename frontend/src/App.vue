@@ -33,6 +33,10 @@ const manualLocationSelecting = ref(false);
 const { schedule } = useDebouncedTask(400);
 
 const selectedLoggedFlight = computed(() => logsStore.byId(uiStore.selectedLogId));
+const activeTrajectory = computed(() => {
+  if (uiStore.mode === "live") return flightsStore.liveTrajectory;
+  return selectedLoggedFlight.value?.trajectory ?? [];
+});
 const manualLocationActive = computed(() => uiStore.manualLocationOpen && uiStore.view === "map" && manualLocationSelecting.value);
 const currentViewportCenter = computed(() => mapStore.viewportCenter ?? mapStore.center);
 const liveTimeShiftDisabled = computed(() => !flightsStore.liveCapabilities.supports_history);
@@ -183,6 +187,10 @@ function handleMapReady(map: LeafletMap): void {
   mapInstance.value = map;
 }
 
+function handleSelectFlight(icao24: string): void {
+  uiStore.selectedFlightIcao24 = icao24;
+}
+
 function handleSelectLog(flightId: number): void {
   uiStore.selectedLogId = flightId;
   if (uiStore.view === "map") {
@@ -227,6 +235,7 @@ onMounted(async () => {
 watch(
   () => uiStore.mode,
   (mode) => {
+    uiStore.selectedFlightIcao24 = null;
     if (mode === "live") {
       flightsStore.startPolling();
     } else {
@@ -288,8 +297,10 @@ onBeforeUnmount(() => {
       :manual-location-selecting="manualLocationActive"
       :live-coverage-bounds="mapStore.liveQuery?.queryBounds ?? null"
       :live-coverage-clamped="uiStore.mode === 'live' && Boolean(mapStore.liveQuery?.isClamped)"
+      :trajectory="activeTrajectory"
       @update-bounds="mapStore.setBounds"
       @report="uiStore.reportFlight = $event"
+      @select-flight="handleSelectFlight"
       @select-log="handleSelectLog"
       @ready="handleMapReady"
     />

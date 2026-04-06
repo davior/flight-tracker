@@ -8,8 +8,9 @@ defineProps<{
   flights: ApiLiveFlight[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   report: [flight: ApiLiveFlight];
+  select: [icao24: string];
 }>();
 </script>
 
@@ -17,6 +18,7 @@ defineEmits<{
   <template v-for="flight in flights" :key="flight.icao24">
     <LMarker
       :lat-lng="[flight.latitude, flight.longitude]"
+      @click="emit('select', flight.icao24)"
     >
       <LIcon :icon-size="[34, 34]" :icon-anchor="[17, 17]" class-name="live-flight-marker-icon">
         <div class="live-flight-marker">
@@ -31,7 +33,7 @@ defineEmits<{
         </div>
       </LIcon>
       <LPopup>
-        <LiveFlightPopup :flight="flight" @report="$emit('report', $event)" />
+        <LiveFlightPopup :flight="flight" @report="emit('report', $event)" />
       </LPopup>
     </LMarker>
   </template>

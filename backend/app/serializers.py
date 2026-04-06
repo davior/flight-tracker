@@ -8,6 +8,7 @@ from app.schemas import (
     FlightLogResponse,
     LoggedFlightNearbyResponse,
     PhotoResponse,
+    TrajectoryPoint,
     build_display_type,
 )
 from app.services.aircraft_categories import resolve_aircraft_category_details
@@ -93,6 +94,7 @@ def serialize_flight_log(
         ),
         photos=[serialize_photo(photo) for photo in log.photos],
         aircraft_registry=serialize_aircraft_registry(registry, category) if registry else None,
+        trajectory=[TrajectoryPoint.model_validate(p) for p in log.trajectory] if log.trajectory else None,
     )
 
 
@@ -143,4 +145,5 @@ def serialize_nearby_log(
         photos=[serialize_photo(photo) for photo in log.photos],
         distance_km=distance_km,
         is_owner=viewer_uuid is not None and log.owner_uuid == viewer_uuid,
+        trajectory=[TrajectoryPoint.model_validate(p) for p in log.trajectory] if log.trajectory else None,
     )

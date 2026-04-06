@@ -36,6 +36,22 @@ class OpenSkyLiveFlightProvider:
             history_step_minutes=HISTORY_STEP_MINUTES,
         )
 
+    def get_flight_by_icao24(
+        self,
+        icao24: str,
+        time_seconds: int | None = None,
+    ) -> LiveFlightRecord | None:
+        params: dict[str, str | int] = {"icao24": icao24}
+        if time_seconds is not None:
+            params["time"] = time_seconds
+
+        payload = self._fetch_states(params)
+        for state in payload.get("states") or []:
+            parsed = self._parse_state(state, 0.0, 0.0)
+            if parsed is not None:
+                return parsed
+        return None
+
     def get_flights_in_bounds(
         self,
         north: float,
