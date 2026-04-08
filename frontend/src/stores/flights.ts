@@ -239,7 +239,22 @@ export const useFlightsStore = defineStore("flights", () => {
     isLoadingTrajectory.value = true;
     try {
       const result = await fetchFlightTrajectory(icao24);
-      liveTrajectory.value = result.supports_trajectory ? result.points : [];
+      const points = result.supports_trajectory ? [...result.points] : [];
+
+      // Inject current position from live data — no extra API call needed
+      const currentFlight = liveFlights.value.find((f) => f.icao24 === icao24);
+      if (currentFlight) {
+        points.push({
+          lat: currentFlight.latitude,
+          lng: currentFlight.longitude,
+          altitude: currentFlight.altitude,
+          heading: currentFlight.heading,
+          velocity: currentFlight.velocity,
+          timestamp: currentFlight.last_contact ?? Math.floor(Date.now() / 1000),
+        });
+      }
+
+      liveTrajectory.value = points;
     } catch {
       liveTrajectory.value = [];
     } finally {

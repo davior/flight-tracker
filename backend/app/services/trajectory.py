@@ -28,7 +28,7 @@ def build_trajectory(
     """
     points: list[TrajectoryPoint] = []
 
-    for offset_minutes in range(0, max_history_minutes + 1, step_minutes):
+    for offset_minutes in range(step_minutes, max_history_minutes + 1, step_minutes):
         query_time = reference_time - offset_minutes * 60
         # Round to 5-second boundary for cache-friendliness (matches /flights/nearby behaviour)
         query_time = query_time - (query_time % 5)

@@ -26,6 +26,7 @@ from app.services.aircraft_enrichment import AircraftEnrichmentService
 from app.services.aircraft_categories import load_aircraft_category_map, normalize_aircraft_category_code
 from app.services.image_storage import ImageStorageError, ImageStorageService, UnsupportedImageError
 from app.services.live_flight_provider import LiveFlightProvider
+from app.schemas import TrajectoryPoint
 from app.services.trajectory import build_trajectory
 from app.utils.geo import center_from_bounds, haversine_distance_km, radius_from_bounds
 
@@ -46,12 +47,27 @@ def _build_and_store_trajectory(
     reference_time: int,
     provider: LiveFlightProvider,
     session_factory: sessionmaker,
+    current_lat: float | None,
+    current_lng: float | None,
+    current_altitude: float | None,
+    current_heading: float | None,
+    current_velocity: float | None,
 ) -> None:
     """Background task: build trajectory for a logged flight and persist it."""
     try:
         if not provider.capabilities.supports_history:
             return
         points = build_trajectory(provider, icao24, reference_time)
+        # Inject the logged position as the most-recent point — no extra API call
+        if current_lat is not None and current_lng is not None:
+            points.append(TrajectoryPoint(
+                lat=current_lat,
+                lng=current_lng,
+                altitude=current_altitude,
+                heading=current_heading,
+                velocity=current_velocity,
+                timestamp=reference_time,
+            ))
         if not points:
             return
         session = session_factory()
@@ -177,6 +193,11 @@ async def create_log(
         reference_time=reference_time,
         provider=live_flight_provider,
         session_factory=session_factory,
+        current_lat=float(flight_log.aircraft_latitude) if flight_log.aircraft_latitude is not None else None,
+        current_lng=float(flight_log.aircraft_longitude) if flight_log.aircraft_longitude is not None else None,
+        current_altitude=flight_log.altitude,
+        current_heading=flight_log.heading,
+        current_velocity=flight_log.velocity,
     )
 
     return serialize_flight_log(flight_log, registry, category)
