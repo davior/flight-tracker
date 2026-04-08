@@ -160,7 +160,6 @@ def get_flight_trajectory(
     icao24: str,
     max_history_minutes: int = Query(default=TRAJECTORY_DEFAULT_MAX_HISTORY_MINUTES, ge=1, le=MAX_HISTORY_MINUTES),
     step_minutes: int = Query(default=TRAJECTORY_DEFAULT_STEP_MINUTES, ge=1, le=10),
-    time_shift_minutes: int = Query(default=0, ge=0, le=MAX_HISTORY_MINUTES),
     live_flight_provider: LiveFlightProvider = Depends(get_live_flight_provider),
 ) -> TrajectoryResponse:
     try:
@@ -173,9 +172,7 @@ def get_flight_trajectory(
         return TrajectoryResponse(icao24=normalized, supports_trajectory=False, points=[])
 
     effective_max = min(max_history_minutes, capabilities.max_history_minutes)
-    # Use the same reference point as the current map view so sampled points
-    # align with the time-shifted position injected by the frontend.
-    reference_time = resolve_time_shift_seconds(time_shift_minutes) or int(time.time())
+    reference_time = int(time.time())
 
     try:
         points = build_trajectory(
