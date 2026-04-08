@@ -238,7 +238,9 @@ export const useFlightsStore = defineStore("flights", () => {
     }
     isLoadingTrajectory.value = true;
     try {
-      const result = await fetchFlightTrajectory(icao24);
+      const result = await fetchFlightTrajectory(icao24, {
+        timeShiftMinutes: effectiveTimeShiftMinutes.value,
+      });
       const points = result.supports_trajectory ? [...result.points] : [];
 
       // Inject current position from live data — no extra API call needed
