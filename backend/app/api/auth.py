@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -60,16 +61,14 @@ async def register(
     settings: Settings = Depends(get_app_settings),
 ) -> dict:
     email = payload.email.lower().strip()
-    username = payload.username.strip()
+    username = payload.username.lower().strip()
 
     if len(username) < 3:
         raise HTTPException(status_code=422, detail="Username must be at least 3 characters")
     if len(payload.password) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
 
-    existing = db.execute(
-        select(User).where(or_(User.email == email, User.username == username))
-    ).scalar_one_or_none()
+    existing = db.execute(select(User).where(or_(User.email == email, User.username == username))).scalar_one_or_none()
     if existing:
         if existing.email == email:
             raise HTTPException(status_code=409, detail="An account with this email already exists")
@@ -85,7 +84,19 @@ async def register(
         verification_token_expires=expires,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        conflicting_user = db.execute(
+            select(User).where(or_(User.email == email, User.username == username))
+        ).scalar_one_or_none()
+        if conflicting_user and conflicting_user.email == email:
+            raise HTTPException(status_code=409, detail="An account with this email already exists") from None
+        if conflicting_user and conflicting_user.username == username:
+            raise HTTPException(status_code=409, detail="This username is already taken") from None
+        logger.exception("Unexpected integrity error while creating user for %s", email)
+        raise HTTPException(status_code=500, detail="Unable to create account at this time") from None
     db.refresh(user)
 
     await send_verification_email(email, token, settings)
