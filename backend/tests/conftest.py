@@ -21,6 +21,7 @@ def settings(tmp_path: Path) -> Settings:
         opensky_client_id=None,
         opensky_client_secret=None,
         adsbx_api_key="demo-key",
+        jwt_secret_key="test-secret-key",
     )
 
 

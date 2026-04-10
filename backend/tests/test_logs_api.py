@@ -7,17 +7,22 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
 
 from app.api.logs import create_log, get_nearby_logs, get_photo
 from app.db import create_db_engine, create_session_maker
-from app.models import AircraftCategory, AircraftRegistry, Base, FlightLog, FlightLogPhoto
+from app.models import AircraftCategory, AircraftRegistry, Base, FlightLog, FlightLogPhoto, User
 from PIL import Image, PngImagePlugin
 
 from app.schemas import FlightLogCreate
 from app.services.image_storage import ImageStorageService
+
+
+class FakeLiveFlightProvider:
+    class capabilities:
+        supports_history = False
 
 
 class FakeEnrichmentService:
@@ -66,17 +71,29 @@ def make_db_session(settings) -> Session:
     return session_factory()
 
 
+def make_test_user(db_session: Session, email: str = "test@example.com", username: str = "testuser") -> User:
+    user = User(email=email, username=username, is_verified=True)
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
 def test_create_log_without_photos(settings):
     db_session = make_db_session(settings)
+    user = make_test_user(db_session)
     payload = FlightLogCreate(icao24="ABC123", note="spotted")
 
     async def run():
         return await create_log(
+            background_tasks=BackgroundTasks(),
             payload=payload,
             photos=None,
+            current_user=user,
             db_session=db_session,
             enrichment_service=FakeEnrichmentService(),
             image_storage=ImageStorageService(settings.upload_dir),
+            live_flight_provider=FakeLiveFlightProvider(),
+            session_factory=None,
         )
 
     response = asyncio.run(run())
@@ -103,15 +120,20 @@ def test_create_log_with_single_photo_and_enrichment(settings):
         last_updated="2026-03-29T00:00:00Z",
     )
     db_session = make_db_session(settings)
-    payload = FlightLogCreate(icao24="ABC123", owner_uuid="test-user-1")
+    user = make_test_user(db_session)
+    payload = FlightLogCreate(icao24="ABC123")
 
     async def run():
         return await create_log(
+            background_tasks=BackgroundTasks(),
             payload=payload,
             photos=[make_upload("photo.jpg", "image/jpeg", make_image_bytes("JPEG"))],
+            current_user=user,
             db_session=db_session,
             enrichment_service=FakeEnrichmentService(registry=registry),
             image_storage=ImageStorageService(settings.upload_dir),
+            live_flight_provider=FakeLiveFlightProvider(),
+            session_factory=None,
         )
 
     response = asyncio.run(run())
@@ -122,7 +144,6 @@ def test_create_log_with_single_photo_and_enrichment(settings):
     assert response.aircraft_registry.registration == "VH-ABC"
     assert response.photos[0].url == f"/photos/{response.photos[0].id}"
     assert response.flight_time == response.created_at
-    assert response.owner_uuid == "test-user-1"
 
     db_session.close()
 
@@ -134,15 +155,20 @@ def test_create_log_with_three_photos(settings):
         make_upload("3.png", "image/png", make_image_bytes("PNG")),
     ]
     db_session = make_db_session(settings)
+    user = make_test_user(db_session)
     payload = FlightLogCreate(icao24="ABC123")
 
     async def run():
         return await create_log(
+            background_tasks=BackgroundTasks(),
             payload=payload,
             photos=files,
+            current_user=user,
             db_session=db_session,
             enrichment_service=FakeEnrichmentService(),
             image_storage=ImageStorageService(settings.upload_dir),
+            live_flight_provider=FakeLiveFlightProvider(),
+            session_factory=None,
         )
 
     response = asyncio.run(run())
@@ -158,15 +184,20 @@ def test_create_log_rejects_more_than_three_photos(settings):
         for index in range(4)
     ]
     db_session = make_db_session(settings)
+    user = make_test_user(db_session)
     payload = FlightLogCreate(icao24="ABC123")
 
     async def run():
         return await create_log(
+            background_tasks=BackgroundTasks(),
             payload=payload,
             photos=files,
+            current_user=user,
             db_session=db_session,
             enrichment_service=FakeEnrichmentService(),
             image_storage=ImageStorageService(settings.upload_dir),
+            live_flight_provider=FakeLiveFlightProvider(),
+            session_factory=None,
         )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -180,15 +211,20 @@ def test_create_log_rejects_more_than_three_photos(settings):
 
 def test_create_log_rejects_unsupported_image(settings):
     db_session = make_db_session(settings)
+    user = make_test_user(db_session)
     payload = FlightLogCreate(icao24="ABC123")
 
     async def run():
         return await create_log(
+            background_tasks=BackgroundTasks(),
             payload=payload,
             photos=[make_upload("note.txt", "text/plain", b"not-an-image")],
+            current_user=user,
             db_session=db_session,
             enrichment_service=FakeEnrichmentService(),
             image_storage=ImageStorageService(settings.upload_dir),
+            live_flight_provider=FakeLiveFlightProvider(),
+            session_factory=None,
         )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -209,16 +245,21 @@ def test_create_log_rejects_bad_icao24():
 
 def test_create_log_persists_provided_flight_time(settings):
     db_session = make_db_session(settings)
+    user = make_test_user(db_session)
     flight_time = datetime(2026, 3, 28, 8, 45, tzinfo=timezone.utc)
     payload = FlightLogCreate(icao24="ABC123", flight_time=flight_time, note="historical")
 
     async def run():
         return await create_log(
+            background_tasks=BackgroundTasks(),
             payload=payload,
             photos=None,
+            current_user=user,
             db_session=db_session,
             enrichment_service=FakeEnrichmentService(),
             image_storage=ImageStorageService(settings.upload_dir),
+            live_flight_provider=FakeLiveFlightProvider(),
+            session_factory=None,
         )
 
     response = asyncio.run(run())
@@ -232,6 +273,7 @@ def test_create_log_persists_provided_flight_time(settings):
 
 def test_get_nearby_logs_returns_distance_and_owner(settings):
     db_session = make_db_session(settings)
+    user = make_test_user(db_session)
     db_session.add(
         AircraftRegistry(
             icao24="abc123",
@@ -252,7 +294,7 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
         icao24="abc123",
         callsign="TEST123",
         note="low pass",
-        owner_uuid="viewer-1",
+        owner_id=user.id,
         aircraft_latitude=-37.810000,
         aircraft_longitude=144.965000,
     )
@@ -267,7 +309,7 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
         east=145.1,
         west=144.8,
         time_window_days=1.0,
-        viewer_uuid="viewer-1",
+        current_user=user,
         settings=settings,
         db_session=db_session,
     )
@@ -301,7 +343,7 @@ def test_get_nearby_logs_excludes_points_outside_bounds(settings):
         east=145.1,
         west=144.8,
         time_window_days=1.0,
-        viewer_uuid="viewer-1",
+        current_user=None,
         settings=settings,
         db_session=db_session,
     )
@@ -339,7 +381,7 @@ def test_get_nearby_logs_filters_by_flight_time(settings):
         east=145.1,
         west=144.8,
         time_window_days=0.5,
-        viewer_uuid="viewer-1",
+        current_user=None,
         settings=settings,
         db_session=db_session,
     )
@@ -358,7 +400,7 @@ def test_get_nearby_logs_rejects_invalid_bounds(settings):
             east=145.1,
             west=144.8,
             time_window_days=1.0,
-            viewer_uuid="viewer-1",
+            current_user=None,
             settings=settings,
             db_session=db_session,
         )
@@ -386,7 +428,7 @@ def test_get_nearby_logs_accepts_numeric_day_windows(settings, time_window_days:
         east=145.1,
         west=144.8,
         time_window_days=time_window_days,
-        viewer_uuid="viewer-1",
+        current_user=None,
         settings=settings,
         db_session=db_session,
     )
@@ -414,7 +456,7 @@ def test_get_nearby_logs_rejects_invalid_numeric_day_windows(settings, time_wind
             east=145.1,
             west=144.8,
             time_window_days=time_window_days,
-            viewer_uuid="viewer-1",
+            current_user=None,
             settings=settings,
             db_session=db_session,
         )

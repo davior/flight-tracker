@@ -5,7 +5,6 @@ import { fetchLoggedFlights } from "@/lib/api";
 import { deriveRadiusFromBounds } from "@/lib/geo";
 import { sortLoggedFlightsNearestFirst } from "@/lib/logs";
 import type { ApiLoggedFlight } from "@/types/api";
-import { useIdentityStore } from "./identity";
 import { useMapStore } from "./map";
 import { useUiStore } from "./ui";
 
@@ -20,7 +19,6 @@ export const useLogsStore = defineStore("logs", () => {
 
   async function refresh(): Promise<void> {
     const mapStore = useMapStore();
-    const identityStore = useIdentityStore();
     const uiStore = useUiStore();
     if (!mapStore.query) {
       return;
@@ -41,7 +39,6 @@ export const useLogsStore = defineStore("logs", () => {
       loggedFlights.value = await fetchLoggedFlights({
         bounds: query.bounds,
         timeWindowDays: uiStore.loggedTimeWindowDays,
-        viewerUuid: identityStore.ensureIdentity(),
       });
     } catch (nextError) {
       error.value = nextError instanceof Error ? nextError.message : "Unable to fetch logged flights";

@@ -8,3 +8,6 @@ requests
 python-multipart
 pytest
 httpx
+python-jose[cryptography]
+passlib[bcrypt]
+aiosmtplib

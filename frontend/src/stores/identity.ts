@@ -1,15 +1,16 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed } from "vue";
 
-import { loadOrCreateIdentity } from "@/lib/identity";
+import { useAuthStore } from "@/stores/auth";
 
+// This store now delegates to the auth store.
+// It remains for backwards-compatibility with any code that still calls ensureIdentity().
 export const useIdentityStore = defineStore("identity", () => {
-  const userUuid = ref<string>("");
+  const authStore = useAuthStore();
+
+  const userUuid = computed(() => (authStore.user ? String(authStore.user.id) : ""));
 
   function ensureIdentity(): string {
-    if (!userUuid.value) {
-      userUuid.value = loadOrCreateIdentity();
-    }
     return userUuid.value;
   }
 

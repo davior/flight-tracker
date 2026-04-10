@@ -8,6 +8,7 @@ import type {
   LoggedTimeWindowDays,
   MapBounds,
 } from "@/types/api";
+import { clearToken, loadToken } from "@/lib/auth";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
@@ -28,13 +29,20 @@ function buildApiUrl(path: string): string {
 }
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = loadToken();
   const response = await fetch(buildApiUrl(path), {
     ...init,
     headers: {
       Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
   });
+
+  if (response.status === 401) {
+    clearToken();
+    window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+  }
 
   if (!response.ok) {
     const contentType = response.headers.get("content-type") ?? "";
@@ -95,7 +103,6 @@ export async function fetchLiveFlightCapabilities(): Promise<ApiLiveFlightCapabi
 export async function fetchLoggedFlights(params: {
   bounds: MapBounds;
   timeWindowDays: LoggedTimeWindowDays;
-  viewerUuid: string;
 }): Promise<ApiLoggedFlight[]> {
   const search = new URLSearchParams({
     north: params.bounds.north.toString(),
@@ -103,7 +110,6 @@ export async function fetchLoggedFlights(params: {
     east: params.bounds.east.toString(),
     west: params.bounds.west.toString(),
     time_window_days: params.timeWindowDays.toString(),
-    viewer_uuid: params.viewerUuid,
   });
   return fetchJson<ApiLoggedFlight[]>(`/logs/nearby?${search.toString()}`);
 }

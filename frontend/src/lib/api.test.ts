@@ -151,11 +151,10 @@ describe("fetchLoggedFlights", () => {
         west: 144.8,
       },
       timeWindowDays: 1.5,
-      viewerUuid: "viewer-1",
     });
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      "/api/logs/nearby?north=-37.7&south=-37.9&east=145.1&west=144.8&time_window_days=1.5&viewer_uuid=viewer-1",
+      "/api/logs/nearby?north=-37.7&south=-37.9&east=145.1&west=144.8&time_window_days=1.5",
       expect.any(Object),
     );
   });
@@ -179,7 +178,6 @@ describe("createFlightLog", () => {
     await createFlightLog(
       {
         icao24: "abc123",
-        owner_uuid: "viewer-1",
         flight_time: "2026-03-28T10:00:00.000Z",
       },
       [],

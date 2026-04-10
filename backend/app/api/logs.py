@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session, sessionmaker, selectinload
 
 from app.config import Settings
 from app.db import get_db
-from app.dependencies import get_app_settings, get_enrichment_service, get_image_storage_service, get_live_flight_provider, get_session_maker
-from app.models import AircraftRegistry, FlightLog, FlightLogPhoto
+from app.dependencies import get_app_settings, get_enrichment_service, get_image_storage_service, get_live_flight_provider, get_optional_current_user, get_current_user, get_session_maker
+from app.models import AircraftRegistry, FlightLog, FlightLogPhoto, User
 from app.serializers import resolve_log_coordinates, serialize_flight_log, serialize_nearby_log
 from app.schemas import (
     FlightLogCreate,
@@ -95,7 +95,6 @@ def parse_log_form(
     velocity: float | None = Form(None),
     heading: float | None = Form(None),
     vertical_rate: float | None = Form(None),
-    owner_uuid: str | None = Form(None),
     logger_name: str | None = Form(None),
     logger_location: str | None = Form(None),
     logger_latitude: str | None = Form(None),
@@ -116,7 +115,6 @@ def parse_log_form(
             velocity=velocity,
             heading=heading,
             vertical_rate=vertical_rate,
-            owner_uuid=owner_uuid,
             logger_name=logger_name,
             logger_location=logger_location,
             logger_latitude=logger_latitude,
@@ -132,6 +130,7 @@ async def create_log(
     background_tasks: BackgroundTasks,
     payload: FlightLogCreate = Depends(parse_log_form),
     photos: list[UploadFile] | None = File(default=None),
+    current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db),
     enrichment_service: AircraftEnrichmentService = Depends(get_enrichment_service),
     image_storage: ImageStorageService = Depends(get_image_storage_service),
@@ -151,6 +150,7 @@ async def create_log(
             payload_data["created_at"] = fallback_timestamp
             payload_data["flight_time"] = fallback_timestamp
 
+        payload_data["owner_id"] = current_user.id
         flight_log = FlightLog(**payload_data)
         db_session.add(flight_log)
         db_session.flush()
@@ -210,7 +210,7 @@ def get_nearby_logs(
     east: float = Query(...),
     west: float = Query(...),
     time_window_days: float = Query(1.0),
-    viewer_uuid: str | None = Query(None),
+    current_user: User | None = Depends(get_optional_current_user),
     settings: Settings = Depends(get_app_settings),
     db_session: Session = Depends(get_db),
 ) -> list[LoggedFlightNearbyResponse]:
@@ -261,7 +261,7 @@ def get_nearby_logs(
             serialize_nearby_log(
                 log=log,
                 distance_km=distance_km,
-                viewer_uuid=viewer_uuid,
+                viewer_id=current_user.id if current_user else None,
                 registry=registry_map.get(log.icao24),
                 category=category_map.get(
                     normalize_aircraft_category_code(registry_map[log.icao24].category)
