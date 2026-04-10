@@ -16,6 +16,7 @@ from app.models import (
     AircraftRegistry,
     AircraftType,
     AircraftCategory,
+    User,
 )
 
 # this is the Alembic Config object, which provides

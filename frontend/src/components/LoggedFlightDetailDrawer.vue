@@ -4,6 +4,13 @@ import { formatTimestamp } from "@/lib/format";
 import { formatDistance } from "@/lib/geo";
 import type { ApiLoggedFlight } from "@/types/api";
 
+function loggedByLine(flight: ApiLoggedFlight): string | null {
+  if (!flight.owner_username) {
+    return null;
+  }
+  return `Logged by ${flight.owner_username} at ${formatTimestamp(flight.created_at)}`;
+}
+
 defineProps<{
   flight: ApiLoggedFlight | null;
   inline?: boolean;
@@ -30,6 +37,9 @@ defineEmits<{
           </p>
           <p v-if="getAircraftCategoryDescription(flight)" class="mt-1 text-xs text-[var(--muted)]">
             {{ getAircraftCategoryDescription(flight) }}
+          </p>
+          <p v-if="loggedByLine(flight)" class="mt-2 text-xs text-[var(--muted)]">
+            {{ loggedByLine(flight) }}
           </p>
         </div>
         <button class="rounded-full bg-white/70 p-2 text-sm font-semibold hover:bg-white/90" @click="$emit('close')" aria-label="Close">
@@ -82,6 +92,9 @@ defineEmits<{
         </p>
         <p v-if="getAircraftCategoryDescription(flight)" class="mt-1 text-xs text-[var(--muted)]">
           {{ getAircraftCategoryDescription(flight) }}
+        </p>
+        <p v-if="loggedByLine(flight)" class="mt-2 text-xs text-[var(--muted)]">
+          {{ loggedByLine(flight) }}
         </p>
       </div>
       <button class="rounded-full bg-white/70 px-3 py-1 text-sm font-semibold" @click="$emit('close')">Close</button>

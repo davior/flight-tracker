@@ -14,6 +14,8 @@ function makeLog(id: number, distance: number, createdAt: string, flightTime: st
     logger_latitude: null,
     logger_longitude: null,
     owner_uuid: null,
+    owner_id: null,
+    owner_username: null,
     type_code: null,
     manufacturer: null,
     model: null,

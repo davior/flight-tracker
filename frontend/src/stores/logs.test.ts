@@ -1,7 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 
 import * as api from "@/lib/api";
-import { useIdentityStore } from "@/stores/identity";
 import { useLogsStore } from "@/stores/logs";
 import { useMapStore } from "@/stores/map";
 import { useUiStore } from "@/stores/ui";
@@ -14,12 +13,10 @@ describe("useLogsStore", () => {
   it("requests logged flights with map bounds", async () => {
     const logsStore = useLogsStore();
     const mapStore = useMapStore();
-    const identityStore = useIdentityStore();
     const uiStore = useUiStore();
 
     mapStore.setBounds({ north: -37.7, south: -37.9, east: 145.1, west: 144.8 });
     uiStore.loggedTimeWindowDays = 1;
-    identityStore.ensureIdentity();
 
     const fetchLoggedFlightsSpy = vi.spyOn(api, "fetchLoggedFlights").mockResolvedValue([]);
 
@@ -33,7 +30,6 @@ describe("useLogsStore", () => {
         west: 144.8,
       },
       timeWindowDays: 1,
-      viewerUuid: expect.any(String),
     });
   });
 

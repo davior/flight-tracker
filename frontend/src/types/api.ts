@@ -83,6 +83,8 @@ export interface ApiLoggedFlight {
   logger_latitude: number | null;
   logger_longitude: number | null;
   owner_uuid: string | null;
+  owner_id: number | null;
+  owner_username: string | null;
   heading: number | null;
   type_code: string | null;
   manufacturer: string | null;
@@ -113,6 +115,8 @@ export interface ApiCreatedLog {
   heading: number | null;
   vertical_rate: number | null;
   owner_uuid: string | null;
+  owner_id: number | null;
+  owner_username: string | null;
   logger_name: string | null;
   logger_location: string | null;
   logger_latitude: number | null;
@@ -139,7 +143,6 @@ export interface CreateLogFields {
   velocity?: number | null;
   heading?: number | null;
   vertical_rate?: number | null;
-  owner_uuid: string;
   logger_latitude?: number | null;
   logger_longitude?: number | null;
   note?: string | null;
