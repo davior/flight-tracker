@@ -4,7 +4,7 @@ import LoggedFlightDetailDrawer from "@/components/LoggedFlightDetailDrawer.vue"
 import { formatTimestamp } from "@/lib/format";
 
 describe("LoggedFlightDetailDrawer", () => {
-  it("labels and shows flight_time in the detail grid", () => {
+  it("shows flight time and logged-by metadata", () => {
     const flightTime = "2026-03-28T10:15:00Z";
     const createdAt = "2026-03-28T12:00:00Z";
     const wrapper = mount(LoggedFlightDetailDrawer, {
@@ -21,6 +21,8 @@ describe("LoggedFlightDetailDrawer", () => {
           logger_latitude: null,
           logger_longitude: null,
           owner_uuid: null,
+          owner_id: 5,
+          owner_username: "spotterone",
           type_code: null,
           manufacturer: null,
           model: null,
@@ -37,6 +39,6 @@ describe("LoggedFlightDetailDrawer", () => {
 
     expect(wrapper.text()).toContain("Flight Time");
     expect(wrapper.text()).toContain(formatTimestamp(flightTime));
-    expect(wrapper.text()).not.toContain(formatTimestamp(createdAt));
+    expect(wrapper.text()).toContain(`Logged by spotterone at ${formatTimestamp(createdAt)}`);
   });
 });

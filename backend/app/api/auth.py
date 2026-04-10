@@ -36,6 +36,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _is_token_expired(expires_at: datetime | None) -> bool:
+    if expires_at is None:
+        return False
+    if expires_at.tzinfo is None:
+        return expires_at < datetime.utcnow()
+    return expires_at < datetime.now(timezone.utc)
+
+
 def _user_response(user: User) -> UserResponse:
     return UserResponse(
         id=user.id,
@@ -133,7 +141,7 @@ def verify_email(
 
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired verification token")
-    if user.verification_token_expires and user.verification_token_expires < datetime.now(timezone.utc):
+    if _is_token_expired(user.verification_token_expires):
         raise HTTPException(status_code=400, detail="Verification token has expired. Please request a new one.")
 
     user.is_verified = True
@@ -196,7 +204,7 @@ def reset_password(
 
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
-    if user.password_reset_expires and user.password_reset_expires < datetime.now(timezone.utc):
+    if _is_token_expired(user.password_reset_expires):
         raise HTTPException(status_code=400, detail="Reset token has expired. Please request a new one.")
 
     user.password_hash = hash_password(payload.new_password)

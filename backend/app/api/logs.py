@@ -152,6 +152,7 @@ async def create_log(
 
         payload_data["owner_id"] = current_user.id
         flight_log = FlightLog(**payload_data)
+        flight_log.owner = current_user
         db_session.add(flight_log)
         db_session.flush()
 
@@ -232,7 +233,7 @@ def get_nearby_logs(
     cutoff = datetime.now(timezone.utc) - window
     logs = db_session.execute(
         select(FlightLog)
-        .options(selectinload(FlightLog.photos))
+        .options(selectinload(FlightLog.photos), selectinload(FlightLog.owner))
         .where(FlightLog.flight_time >= cutoff)
     ).scalars()
     log_items = list(logs)

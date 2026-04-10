@@ -104,6 +104,8 @@ def test_create_log_without_photos(settings):
     assert response.aircraft_registry is None
     assert response.flight_time == response.created_at
     assert response.owner_uuid is None
+    assert response.owner_id == user.id
+    assert response.owner_username == user.username
 
     db_session.close()
 
@@ -144,6 +146,8 @@ def test_create_log_with_single_photo_and_enrichment(settings):
     assert response.aircraft_registry.registration == "VH-ABC"
     assert response.photos[0].url == f"/photos/{response.photos[0].id}"
     assert response.flight_time == response.created_at
+    assert response.owner_id == user.id
+    assert response.owner_username == user.username
 
     db_session.close()
 
@@ -316,6 +320,8 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
 
     assert len(results) == 1
     assert results[0].is_owner is True
+    assert results[0].owner_id == user.id
+    assert results[0].owner_username == user.username
     assert results[0].display_type == "Airbus A320-232"
     assert results[0].category == "L"
     assert results[0].category_label == "Light"

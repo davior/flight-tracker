@@ -164,6 +164,8 @@ class FlightLogResponse(BaseModel):
     heading: float | None = None
     vertical_rate: float | None = None
     owner_uuid: str | None = None
+    owner_id: int | None = None
+    owner_username: str | None = None
     logger_name: str | None = None
     logger_location: str | None = None
     logger_latitude: Decimal | None = None
@@ -194,6 +196,7 @@ class LoggedFlightNearbyResponse(BaseModel):
     logger_longitude: Decimal | None = None
     owner_uuid: str | None = None
     owner_id: int | None = None
+    owner_username: str | None = None
     heading: float | None = None
     type_code: str | None = None
     manufacturer: str | None = None
