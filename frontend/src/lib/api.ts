@@ -8,6 +8,7 @@ import type {
   LoggedTimeWindowDays,
   MapBounds,
 } from "@/types/api";
+import type { AuthUser } from "@/types/auth";
 import { clearToken, loadToken } from "@/lib/auth";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
@@ -148,5 +149,42 @@ export async function createFlightLog(fields: CreateLogFields, files: File[]): P
   return fetchJson<ApiCreatedLog>("/logs", {
     method: "POST",
     body: formData,
+  });
+}
+
+export async function deleteLog(id: number): Promise<void> {
+  const token = loadToken();
+  const response = await fetch(buildApiUrl(`/logs/${id}`), {
+    method: "DELETE",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (response.status === 401) {
+    clearToken();
+    window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+  }
+  if (!response.ok) {
+    throw new ApiError(`Failed to delete log`, response.status);
+  }
+}
+
+export async function patchLog(id: number, note: string | null): Promise<ApiCreatedLog> {
+  return fetchJson<ApiCreatedLog>(`/logs/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note }),
+  });
+}
+
+export async function updateProfile(payload: {
+  username?: string;
+  current_password?: string;
+  new_password?: string;
+}): Promise<AuthUser> {
+  return fetchJson<AuthUser>("/auth/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 }

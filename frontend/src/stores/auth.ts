@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 
 import type { AuthTokenResponse, AuthUser } from "@/types/auth";
 import { clearToken, loadToken, saveToken } from "@/lib/auth";
+import { updateProfile as apiUpdateProfile } from "@/lib/api";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
@@ -125,6 +126,15 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = updated;
   }
 
+  async function updateProfile(payload: {
+    username?: string;
+    current_password?: string;
+    new_password?: string;
+  }): Promise<void> {
+    const updated = await apiUpdateProfile(payload);
+    user.value = updated;
+  }
+
   function logout(): void {
     _clearAuth();
   }
@@ -145,6 +155,7 @@ export const useAuthStore = defineStore("auth", () => {
     resetPassword,
     loginWithGoogle,
     markTutorialSeen,
+    updateProfile,
     logout,
   };
 });

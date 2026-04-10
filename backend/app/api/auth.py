@@ -19,6 +19,7 @@ from app.schemas import (
     RegisterRequest,
     ResetPasswordRequest,
     TokenResponse,
+    UpdateProfileRequest,
     UserResponse,
     VerifyEmailRequest,
 )
@@ -264,6 +265,36 @@ async def google_auth(
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
+    return _user_response(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_profile(
+    payload: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    if payload.username is not None:
+        username = payload.username.lower().strip()
+        if len(username) < 3:
+            raise HTTPException(status_code=422, detail="Username must be at least 3 characters")
+        if username != current_user.username:
+            existing = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+            if existing:
+                raise HTTPException(status_code=409, detail="This username is already taken")
+            current_user.username = username
+
+    if payload.new_password is not None:
+        if len(payload.new_password) < 8:
+            raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
+        if not payload.current_password:
+            raise HTTPException(status_code=422, detail="current_password is required to set a new password")
+        if not current_user.password_hash or not verify_password(payload.current_password, current_user.password_hash):
+            raise HTTPException(status_code=401, detail="Current password is incorrect")
+        current_user.password_hash = hash_password(payload.new_password)
+
+    db.commit()
+    db.refresh(current_user)
     return _user_response(current_user)
 
 

@@ -11,12 +11,12 @@ from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
 
-from app.api.logs import _build_and_store_trajectory, create_log, get_nearby_logs, get_photo
+from app.api.logs import _build_and_store_trajectory, create_log, delete_log, get_nearby_logs, get_photo, patch_log
 from app.db import create_db_engine, create_session_maker
 from app.models import AircraftCategory, AircraftRegistry, Base, FlightLog, FlightLogPhoto, User
 from PIL import Image, PngImagePlugin
 
-from app.schemas import FlightLogCreate, TrajectoryPoint
+from app.schemas import FlightLogCreate, PatchLogRequest, TrajectoryPoint
 from app.services.image_storage import ImageStorageService
 
 
@@ -581,4 +581,197 @@ def test_get_photo_returns_file_response(settings):
     assert Path(response.path) == file_path
     assert response.media_type == "image/jpeg"
 
+    db_session.close()
+
+
+# ---------------------------------------------------------------------------
+# DELETE /logs/{log_id}
+# ---------------------------------------------------------------------------
+
+def test_delete_log_success(settings):
+    db_session = make_db_session(settings)
+    owner = make_test_user(db_session)
+    log = FlightLog(icao24="abc123", owner_id=owner.id)
+    db_session.add(log)
+    db_session.commit()
+    log_id = log.id
+
+    delete_log(
+        log_id=log_id,
+        current_user=owner,
+        db_session=db_session,
+        image_storage=ImageStorageService(settings.upload_dir),
+    )
+
+    assert db_session.get(FlightLog, log_id) is None
+    db_session.close()
+
+
+def test_delete_log_removes_photo_files(settings):
+    db_session = make_db_session(settings)
+    owner = make_test_user(db_session)
+    log = FlightLog(icao24="abc123", owner_id=owner.id)
+    db_session.add(log)
+    db_session.flush()
+
+    target_dir = settings.upload_dir / "flight_logs" / str(log.id)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    photo_file = target_dir / "test.jpg"
+    photo_file.write_bytes(make_image_bytes("JPEG"))
+    log.photos.append(FlightLogPhoto(file_path=f"flight_logs/{log.id}/test.jpg"))
+    db_session.commit()
+    log_id = log.id
+
+    delete_log(
+        log_id=log_id,
+        current_user=owner,
+        db_session=db_session,
+        image_storage=ImageStorageService(settings.upload_dir),
+    )
+
+    assert not photo_file.exists()
+    assert db_session.get(FlightLog, log_id) is None
+    db_session.close()
+
+
+def test_delete_log_forbidden(settings):
+    db_session = make_db_session(settings)
+    owner = make_test_user(db_session, email="owner@example.com", username="owner")
+    other = make_test_user(db_session, email="other@example.com", username="other")
+    log = FlightLog(icao24="abc123", owner_id=owner.id)
+    db_session.add(log)
+    db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        delete_log(
+            log_id=log.id,
+            current_user=other,
+            db_session=db_session,
+            image_storage=ImageStorageService(settings.upload_dir),
+        )
+
+    assert exc_info.value.status_code == 403
+    assert db_session.get(FlightLog, log.id) is not None
+    db_session.close()
+
+
+def test_delete_log_not_found(settings):
+    db_session = make_db_session(settings)
+    user = make_test_user(db_session)
+
+    with pytest.raises(HTTPException) as exc_info:
+        delete_log(
+            log_id=99999,
+            current_user=user,
+            db_session=db_session,
+            image_storage=ImageStorageService(settings.upload_dir),
+        )
+
+    assert exc_info.value.status_code == 404
+    db_session.close()
+
+
+# ---------------------------------------------------------------------------
+# PATCH /logs/{log_id}
+# ---------------------------------------------------------------------------
+
+def test_patch_log_note_success(settings):
+    db_session = make_db_session(settings)
+    owner = make_test_user(db_session)
+    log = FlightLog(icao24="abc123", note="original", owner_id=owner.id)
+    db_session.add(log)
+    db_session.commit()
+
+    response = patch_log(
+        log_id=log.id,
+        payload=PatchLogRequest(note="updated note"),
+        current_user=owner,
+        db_session=db_session,
+    )
+
+    assert response.note == "updated note"
+    db_session.expire_all()
+    persisted = db_session.get(FlightLog, log.id)
+    assert persisted.note == "updated note"
+    db_session.close()
+
+
+def test_patch_log_note_cleared(settings):
+    db_session = make_db_session(settings)
+    owner = make_test_user(db_session)
+    log = FlightLog(icao24="abc123", note="something", owner_id=owner.id)
+    db_session.add(log)
+    db_session.commit()
+
+    response = patch_log(
+        log_id=log.id,
+        payload=PatchLogRequest(note=None),
+        current_user=owner,
+        db_session=db_session,
+    )
+
+    assert response.note is None
+    db_session.close()
+
+
+def test_patch_log_forbidden(settings):
+    db_session = make_db_session(settings)
+    owner = make_test_user(db_session, email="owner@example.com", username="owner")
+    other = make_test_user(db_session, email="other@example.com", username="other")
+    log = FlightLog(icao24="abc123", note="original", owner_id=owner.id)
+    db_session.add(log)
+    db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        patch_log(
+            log_id=log.id,
+            payload=PatchLogRequest(note="hacked"),
+            current_user=other,
+            db_session=db_session,
+        )
+
+    assert exc_info.value.status_code == 403
+    db_session.expire_all()
+    assert db_session.get(FlightLog, log.id).note == "original"
+    db_session.close()
+
+
+def test_patch_log_not_found(settings):
+    db_session = make_db_session(settings)
+    user = make_test_user(db_session)
+
+    with pytest.raises(HTTPException) as exc_info:
+        patch_log(
+            log_id=99999,
+            payload=PatchLogRequest(note="anything"),
+            current_user=user,
+            db_session=db_session,
+        )
+
+    assert exc_info.value.status_code == 404
+    db_session.close()
+
+
+def test_nearby_logs_sql_bounds_filtering(settings):
+    """Logs with aircraft position outside bounds are excluded at the SQL layer."""
+    db_session = make_db_session(settings)
+    # Inside bounds
+    db_session.add(FlightLog(icao24="aaaaaa", aircraft_latitude=-37.81, aircraft_longitude=144.97))
+    # Outside bounds (north of query area)
+    db_session.add(FlightLog(icao24="bbbbbb", aircraft_latitude=-37.5, aircraft_longitude=144.97))
+    db_session.commit()
+
+    results = get_nearby_logs(
+        north=-37.7,
+        south=-37.9,
+        east=145.1,
+        west=144.8,
+        time_window_days=1.0,
+        current_user=None,
+        settings=settings,
+        db_session=db_session,
+    )
+
+    assert len(results) == 1
+    assert results[0].icao24 == "aaaaaa"
     db_session.close()

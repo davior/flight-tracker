@@ -16,6 +16,7 @@ import PasswordResetModal from "@/components/PasswordResetModal.vue";
 import ReportFlightModal from "@/components/ReportFlightModal.vue";
 import ToastStack from "@/components/ToastStack.vue";
 import TutorialModal from "@/components/TutorialModal.vue";
+import UserProfileSheet from "@/components/UserProfileSheet.vue";
 import ViewToggle from "@/components/ViewToggle.vue";
 import { createFlightLog } from "@/lib/api";
 import { useDebouncedTask } from "@/composables/useDebouncedTask";
@@ -34,6 +35,7 @@ const uiStore = useUiStore();
 const mapInstance = ref<LeafletMap | null>(null);
 const reporting = ref(false);
 const manualLocationSelecting = ref(false);
+const profileSheetOpen = ref(false);
 const { schedule } = useDebouncedTask(400);
 
 const selectedLoggedFlight = computed(() => logsStore.byId(uiStore.selectedLogId));
@@ -378,6 +380,7 @@ onBeforeUnmount(() => {
       <FloatingControls
         @location="openLocationSettings"
         @refresh="refreshCurrentMode('manual')"
+        @profile="profileSheetOpen = true"
       />
       <div
         v-if="uiStore.mode === 'live' && uiStore.view === 'map' && flightsStore.coverageMessage"
@@ -426,6 +429,11 @@ onBeforeUnmount(() => {
         @close="closeLocationSettings"
         @submit="handleLocationSettingsSubmit"
         @update-location-mode="setLocationMode"
+      />
+
+      <UserProfileSheet
+        :open="profileSheetOpen"
+        @close="profileSheetOpen = false"
       />
     </template>
   </main>

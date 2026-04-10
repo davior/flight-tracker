@@ -20,6 +20,7 @@ from app.schemas import (
     FlightLogCreate,
     FlightLogResponse,
     LoggedFlightNearbyResponse,
+    PatchLogRequest,
     parse_time_window_days,
 )
 from app.services.aircraft_enrichment import AircraftEnrichmentService
@@ -238,7 +239,11 @@ def get_nearby_logs(
     logs = db_session.execute(
         select(FlightLog)
         .options(selectinload(FlightLog.photos), selectinload(FlightLog.owner))
-        .where(FlightLog.flight_time >= cutoff)
+        .where(
+            FlightLog.flight_time >= cutoff,
+            FlightLog.aircraft_latitude.between(south, north),
+            FlightLog.aircraft_longitude.between(west, east),
+        )
     ).scalars()
     log_items = list(logs)
     center_lat, center_lon = center_from_bounds(north, south, east, west)
@@ -259,8 +264,6 @@ def get_nearby_logs(
         coordinates = resolve_log_coordinates(log)
         if coordinates is None:
             continue
-        if not (south <= coordinates[0] <= north and west <= coordinates[1] <= east):
-            continue
         distance_km = round(haversine_distance_km(center_lat, center_lon, coordinates[0], coordinates[1]), 3)
         results.append(
             serialize_nearby_log(
@@ -278,6 +281,47 @@ def get_nearby_logs(
 
     results.sort(key=lambda item: (item.distance_km, -item.flight_time.timestamp()))
     return results
+
+
+@router.delete("/{log_id}", status_code=204)
+def delete_log(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db_session: Session = Depends(get_db),
+    image_storage: ImageStorageService = Depends(get_image_storage_service),
+) -> None:
+    log = db_session.get(FlightLog, log_id, options=[selectinload(FlightLog.photos)])
+    if log is None:
+        raise HTTPException(status_code=404, detail="Flight log not found")
+    if log.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not own this flight log")
+    image_storage.delete_files(log.photos)
+    db_session.delete(log)
+    db_session.commit()
+
+
+@router.patch("/{log_id}", response_model=FlightLogResponse)
+def patch_log(
+    log_id: int,
+    payload: PatchLogRequest,
+    current_user: User = Depends(get_current_user),
+    db_session: Session = Depends(get_db),
+) -> FlightLogResponse:
+    log = db_session.get(FlightLog, log_id, options=[selectinload(FlightLog.photos), selectinload(FlightLog.owner)])
+    if log is None:
+        raise HTTPException(status_code=404, detail="Flight log not found")
+    if log.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not own this flight log")
+    log.note = payload.note
+    db_session.commit()
+    db_session.refresh(log)
+    registry = db_session.get(AircraftRegistry, log.icao24)
+    category = None
+    if registry and registry.category:
+        category_map = load_aircraft_category_map(db_session, [registry.category])
+        from app.services.aircraft_categories import normalize_aircraft_category_code
+        category = category_map.get(normalize_aircraft_category_code(registry.category) or "")
+    return serialize_flight_log(log, registry, category)
 
 
 @photo_router.get("/photos/{photo_id}")

@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { formatAircraftCategory, getAircraftCategoryDescription, getAircraftDisplayLabel } from "@/lib/aircraft";
 import { formatTimestamp } from "@/lib/format";
 import { formatDistance } from "@/lib/geo";
 import type { ApiLoggedFlight } from "@/types/api";
+import { useLogsStore } from "@/stores/logs";
+import { useUiStore } from "@/stores/ui";
 
 function loggedByLine(flight: ApiLoggedFlight): string | null {
   if (!flight.owner_username) {
@@ -11,14 +14,59 @@ function loggedByLine(flight: ApiLoggedFlight): string | null {
   return `Logged by ${flight.owner_username} at ${formatTimestamp(flight.created_at)}`;
 }
 
-defineProps<{
+const props = defineProps<{
   flight: ApiLoggedFlight | null;
   inline?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   close: [];
 }>();
+
+const logsStore = useLogsStore();
+const uiStore = useUiStore();
+
+const isEditing = ref(false);
+const editNote = ref("");
+const isSaving = ref(false);
+const isDeleting = ref(false);
+const confirmingDelete = ref(false);
+
+function startEdit() {
+  editNote.value = props.flight?.note ?? "";
+  isEditing.value = true;
+}
+
+function cancelEdit() {
+  isEditing.value = false;
+}
+
+async function saveEdit() {
+  if (!props.flight) return;
+  isSaving.value = true;
+  try {
+    await logsStore.patchLogNote(props.flight.id, editNote.value.trim() || null);
+    isEditing.value = false;
+  } catch {
+    uiStore.showToast("Failed to update note.");
+  } finally {
+    isSaving.value = false;
+  }
+}
+
+async function confirmDelete() {
+  if (!props.flight) return;
+  isDeleting.value = true;
+  try {
+    await logsStore.deleteLogById(props.flight.id);
+    emit("close");
+  } catch {
+    uiStore.showToast("Failed to delete log.");
+    confirmingDelete.value = false;
+  } finally {
+    isDeleting.value = false;
+  }
+}
 </script>
 
 <template>
@@ -65,7 +113,27 @@ defineEmits<{
         </div>
       </div>
 
-      <p class="mt-4 rounded-3xl bg-white/70 p-4 text-sm text-[var(--muted)]">{{ flight.note || "No note added." }}</p>
+      <template v-if="isEditing">
+        <textarea
+          v-model="editNote"
+          class="mt-4 w-full rounded-3xl bg-white/70 p-4 text-sm text-[var(--ink)] resize-none focus:outline-none"
+          rows="3"
+          placeholder="Add a note…"
+        />
+        <div class="mt-2 flex gap-2">
+          <button
+            class="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            :disabled="isSaving"
+            @click="saveEdit"
+          >{{ isSaving ? "Saving…" : "Save" }}</button>
+          <button
+            class="rounded-full bg-white/70 px-4 py-2 text-sm font-semibold hover:bg-white/90"
+            :disabled="isSaving"
+            @click="cancelEdit"
+          >Cancel</button>
+        </div>
+      </template>
+      <p v-else class="mt-4 rounded-3xl bg-white/70 p-4 text-sm text-[var(--muted)]">{{ flight.note || "No note added." }}</p>
 
       <div v-if="flight.photos.length" class="mt-4 grid grid-cols-3 gap-3">
         <img
@@ -76,6 +144,35 @@ defineEmits<{
           class="h-24 w-full rounded-2xl object-cover"
         />
       </div>
+
+      <template v-if="flight.is_owner && !isEditing">
+        <div v-if="confirmingDelete" class="mt-4 rounded-2xl bg-red-50/80 p-3 text-sm">
+          <p class="font-semibold text-red-700">Delete this log?</p>
+          <p class="mt-1 text-red-600">This cannot be undone.</p>
+          <div class="mt-3 flex gap-2">
+            <button
+              class="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              :disabled="isDeleting"
+              @click="confirmDelete"
+            >{{ isDeleting ? "Deleting…" : "Yes, delete" }}</button>
+            <button
+              class="rounded-full bg-white/70 px-4 py-2 text-sm font-semibold hover:bg-white/90"
+              :disabled="isDeleting"
+              @click="confirmingDelete = false"
+            >Cancel</button>
+          </div>
+        </div>
+        <div v-else class="mt-4 flex gap-2">
+          <button
+            class="rounded-full bg-white/70 px-4 py-2 text-sm font-semibold hover:bg-white/90"
+            @click="startEdit"
+          >Edit note</button>
+          <button
+            class="rounded-full bg-red-100/80 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200/80"
+            @click="confirmingDelete = true"
+          >Delete</button>
+        </div>
+      </template>
     </div>
   </div>
   <aside
@@ -115,7 +212,27 @@ defineEmits<{
       </div>
     </div>
 
-    <p class="mt-4 rounded-3xl bg-white/70 p-4 text-sm text-[var(--muted)]">{{ flight.note || "No note added." }}</p>
+    <template v-if="isEditing">
+      <textarea
+        v-model="editNote"
+        class="mt-4 w-full rounded-3xl bg-white/70 p-4 text-sm text-[var(--ink)] resize-none focus:outline-none"
+        rows="3"
+        placeholder="Add a note…"
+      />
+      <div class="mt-2 flex gap-2">
+        <button
+          class="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          :disabled="isSaving"
+          @click="saveEdit"
+        >{{ isSaving ? "Saving…" : "Save" }}</button>
+        <button
+          class="rounded-full bg-white/70 px-4 py-2 text-sm font-semibold hover:bg-white/90"
+          :disabled="isSaving"
+          @click="cancelEdit"
+        >Cancel</button>
+      </div>
+    </template>
+    <p v-else class="mt-4 rounded-3xl bg-white/70 p-4 text-sm text-[var(--muted)]">{{ flight.note || "No note added." }}</p>
 
     <div v-if="flight.photos.length" class="mt-4 grid grid-cols-3 gap-3">
       <img
@@ -126,5 +243,34 @@ defineEmits<{
         class="h-24 w-full rounded-2xl object-cover"
       />
     </div>
+
+    <template v-if="flight.is_owner && !isEditing">
+      <div v-if="confirmingDelete" class="mt-4 rounded-2xl bg-red-50/80 p-3 text-sm">
+        <p class="font-semibold text-red-700">Delete this log?</p>
+        <p class="mt-1 text-red-600">This cannot be undone.</p>
+        <div class="mt-3 flex gap-2">
+          <button
+            class="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            :disabled="isDeleting"
+            @click="confirmDelete"
+          >{{ isDeleting ? "Deleting…" : "Yes, delete" }}</button>
+          <button
+            class="rounded-full bg-white/70 px-4 py-2 text-sm font-semibold hover:bg-white/90"
+            :disabled="isDeleting"
+            @click="confirmingDelete = false"
+          >Cancel</button>
+        </div>
+      </div>
+      <div v-else class="mt-4 flex gap-2">
+        <button
+          class="rounded-full bg-white/70 px-4 py-2 text-sm font-semibold hover:bg-white/90"
+          @click="startEdit"
+        >Edit note</button>
+        <button
+          class="rounded-full bg-red-100/80 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200/80"
+          @click="confirmingDelete = true"
+        >Delete</button>
+      </div>
+    </template>
   </aside>
 </template>

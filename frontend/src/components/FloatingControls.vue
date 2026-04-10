@@ -3,6 +3,7 @@
 defineEmits<{
   location: [];
   refresh: [];
+  profile: [];
 }>();
 </script>
 
@@ -18,6 +19,17 @@ defineEmits<{
         <span class="location-settings-icon__ring"></span>
         <span class="location-settings-icon__dot"></span>
       </span>
+    </button>
+    <button
+      class="glass-panel flex h-14 w-14 items-center justify-center rounded-2xl text-[var(--muted)]"
+      aria-label="Account settings"
+      title="Account settings"
+      @click="$emit('profile')"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
     </button>
     <button
       class="glass-panel flex h-14 w-14 items-center justify-center rounded-2xl text-[var(--accent)]"

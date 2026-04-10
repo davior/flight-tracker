@@ -47,6 +47,14 @@ class ImageStorageService:
             except OSError:
                 continue
 
+    def delete_files(self, photos: list) -> None:
+        """Delete on-disk files for a list of FlightLogPhoto ORM objects."""
+        for photo in photos:
+            try:
+                (self.upload_dir / photo.file_path).unlink(missing_ok=True)
+            except OSError:
+                continue
+
     async def _store_single(self, target_dir: Path, upload) -> StoredImage:
         if upload.content_type not in SUPPORTED_CONTENT_TYPES:
             raise UnsupportedImageError("Only JPEG and PNG uploads are supported")

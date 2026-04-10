@@ -265,3 +265,15 @@ class ResetPasswordRequest(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     id_token: str
+
+
+class PatchLogRequest(BaseModel):
+    note: str | None = None
+
+
+class UpdateProfileRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    username: str | None = None
+    current_password: str | None = None
+    new_password: str | None = None
