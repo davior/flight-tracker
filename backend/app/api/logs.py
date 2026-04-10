@@ -45,6 +45,7 @@ def _build_and_store_trajectory(
     flight_log_id: int,
     icao24: str,
     reference_time: int,
+    logged_point_time: int,
     provider: LiveFlightProvider,
     session_factory: sessionmaker,
     current_lat: float | None,
@@ -66,8 +67,9 @@ def _build_and_store_trajectory(
                 altitude=current_altitude,
                 heading=current_heading,
                 velocity=current_velocity,
-                timestamp=reference_time,
+                timestamp=logged_point_time,
             ))
+        points.sort(key=lambda point: point.timestamp)
         if not points:
             return
         session = session_factory()
@@ -186,12 +188,14 @@ async def create_log(
         category_map = load_aircraft_category_map(db_session, [registry.category])
         category = category_map.get(normalize_aircraft_category_code(registry.category) or "")
 
-    reference_time = int(flight_log.flight_time.timestamp())
+    reference_time = int(flight_log.created_at.timestamp())
+    logged_point_time = int(flight_log.flight_time.timestamp())
     background_tasks.add_task(
         _build_and_store_trajectory,
         flight_log_id=flight_log.id,
         icao24=flight_log.icao24,
         reference_time=reference_time,
+        logged_point_time=logged_point_time,
         provider=live_flight_provider,
         session_factory=session_factory,
         current_lat=float(flight_log.aircraft_latitude) if flight_log.aircraft_latitude is not None else None,

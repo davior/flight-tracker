@@ -11,12 +11,12 @@ from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
 
-from app.api.logs import create_log, get_nearby_logs, get_photo
+from app.api.logs import _build_and_store_trajectory, create_log, get_nearby_logs, get_photo
 from app.db import create_db_engine, create_session_maker
 from app.models import AircraftCategory, AircraftRegistry, Base, FlightLog, FlightLogPhoto, User
 from PIL import Image, PngImagePlugin
 
-from app.schemas import FlightLogCreate
+from app.schemas import FlightLogCreate, TrajectoryPoint
 from app.services.image_storage import ImageStorageService
 
 
@@ -33,6 +33,11 @@ class FakeEnrichmentService:
     def enrich(self, db_session, icao24: str):
         self.calls.append(icao24)
         return self.registry
+
+
+class FakeHistoryProvider:
+    class capabilities:
+        supports_history = True
 
 
 def make_image_bytes(fmt: str, size: tuple[int, int] = (800, 600), with_text: bool = False) -> bytes:
@@ -275,6 +280,49 @@ def test_create_log_persists_provided_flight_time(settings):
     db_session.close()
 
 
+def test_create_log_builds_trajectory_through_created_at_but_marks_logged_point_at_flight_time(settings, monkeypatch):
+    db_session = make_db_session(settings)
+    user = make_test_user(db_session)
+    flight_time = datetime(2026, 3, 28, 8, 45, tzinfo=timezone.utc)
+    payload = FlightLogCreate(
+        icao24="ABC123",
+        flight_time=flight_time,
+        aircraft_latitude=-37.81,
+        aircraft_longitude=144.96,
+    )
+    captured: dict[str, object] = {}
+
+    def capture_task(*args, **kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr("app.api.logs._build_and_store_trajectory", capture_task)
+
+    async def run():
+        tasks = BackgroundTasks()
+        response = await create_log(
+            background_tasks=tasks,
+            payload=payload,
+            photos=None,
+            current_user=user,
+            db_session=db_session,
+            enrichment_service=FakeEnrichmentService(),
+            image_storage=ImageStorageService(settings.upload_dir),
+            live_flight_provider=FakeLiveFlightProvider(),
+            session_factory=create_session_maker(db_session.get_bind()),
+        )
+        for task in tasks.tasks:
+            task.func(*task.args, **task.kwargs)
+        return response
+
+    response = asyncio.run(run())
+
+    assert captured["flight_log_id"] == response.id
+    assert captured["logged_point_time"] == int(flight_time.timestamp())
+    assert captured["reference_time"] >= captured["logged_point_time"]
+
+    db_session.close()
+
+
 def test_get_nearby_logs_returns_distance_and_owner(settings):
     db_session = make_db_session(settings)
     user = make_test_user(db_session)
@@ -328,6 +376,49 @@ def test_get_nearby_logs_returns_distance_and_owner(settings):
     assert results[0].photos[0].url == f"/photos/{results[0].photos[0].id}"
     assert results[0].distance_km > 0
     assert results[0].flight_time == log.flight_time
+
+    db_session.close()
+
+
+def test_build_and_store_trajectory_sorts_points_after_appending_logged_position(settings, monkeypatch):
+    db_session = make_db_session(settings)
+    log = FlightLog(
+        icao24="abc123",
+        aircraft_latitude=-37.810000,
+        aircraft_longitude=144.965000,
+        flight_time=datetime.fromtimestamp(1000, tz=timezone.utc),
+    )
+    db_session.add(log)
+    db_session.commit()
+
+    monkeypatch.setattr(
+        "app.api.logs.build_trajectory",
+        lambda *args, **kwargs: [
+            TrajectoryPoint(lat=-37.82, lng=144.97, altitude=1200.0, heading=100.0, velocity=146.0, timestamp=820),
+            TrajectoryPoint(lat=-37.81, lng=144.96, altitude=1000.0, heading=90.0, velocity=150.0, timestamp=940),
+        ],
+    )
+
+    session_factory = create_session_maker(db_session.get_bind())
+    _build_and_store_trajectory(
+        flight_log_id=log.id,
+        icao24="abc123",
+        reference_time=1000,
+        logged_point_time=900,
+        provider=FakeHistoryProvider(),
+        session_factory=session_factory,
+        current_lat=-37.80,
+        current_lng=144.95,
+        current_altitude=900.0,
+        current_heading=85.0,
+        current_velocity=140.0,
+    )
+
+    db_session.expire_all()
+    refreshed = db_session.get(FlightLog, log.id)
+    assert refreshed is not None
+    assert refreshed.trajectory is not None
+    assert [point["timestamp"] for point in refreshed.trajectory] == [820, 900, 940]
 
     db_session.close()
 

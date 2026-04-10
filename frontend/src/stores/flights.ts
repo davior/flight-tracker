@@ -254,6 +254,7 @@ export const useFlightsStore = defineStore("flights", () => {
         });
       }
 
+      points.sort((left, right) => left.timestamp - right.timestamp);
       liveTrajectory.value = points;
     } catch {
       liveTrajectory.value = [];

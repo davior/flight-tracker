@@ -191,6 +191,51 @@ describe("useFlightsStore", () => {
     expect(flightsStore.capabilitiesError).toBeNull();
   });
 
+  it("sorts live trajectory points by timestamp after appending the current flight", async () => {
+    const flightsStore = useFlightsStore();
+    flightsStore.liveCapabilities = {
+      provider: "opensky",
+      supports_history: true,
+      max_history_minutes: 60,
+      history_step_minutes: 1,
+    };
+    flightsStore.liveFlights = [
+      {
+        icao24: "abc123",
+        callsign: "TEST123",
+        origin_country: "Australia",
+        latitude: -37.8,
+        longitude: 144.9,
+        altitude: 1000,
+        velocity: 200,
+        heading: 180,
+        vertical_rate: 0,
+        last_contact: 900,
+        distance_km: 5.2,
+        type_code: null,
+        manufacturer: null,
+        model: null,
+        category: null,
+        category_label: null,
+        category_description: null,
+        display_type: null,
+      },
+    ];
+
+    vi.spyOn(api, "fetchFlightTrajectory").mockResolvedValue({
+      icao24: "abc123",
+      supports_trajectory: true,
+      points: [
+        { lat: -37.82, lng: 144.97, altitude: 1200, heading: 100, velocity: 146, timestamp: 820 },
+        { lat: -37.81, lng: 144.96, altitude: 1000, heading: 90, velocity: 150, timestamp: 940 },
+      ],
+    });
+
+    await flightsStore.loadTrajectory("abc123");
+
+    expect(flightsStore.liveTrajectory.map((point) => point.timestamp)).toEqual([820, 900, 940]);
+  });
+
   it("forces a zero time shift when history support is unavailable", async () => {
     const flightsStore = useFlightsStore();
     const mapStore = useMapStore();

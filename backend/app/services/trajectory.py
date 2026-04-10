@@ -54,5 +54,6 @@ def build_trajectory(
                 )
             )
 
-    # Reverse so points go oldest → newest
-    return list(reversed(points))
+    # Always normalize explicitly by timestamp so ordering doesn't depend on loop direction.
+    points.sort(key=lambda point: point.timestamp)
+    return points
