@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 
-import { ApiError, fetchLiveFlightCapabilities, fetchLiveFlights } from "@/lib/api";
-import type { ApiLiveFlight, ApiLiveFlightCapabilities } from "@/types/api";
+import { ApiError, fetchFlightTrajectory, fetchLiveFlightCapabilities, fetchLiveFlights } from "@/lib/api";
+import type { ApiLiveFlight, ApiLiveFlightCapabilities, ApiTrajectoryPoint } from "@/types/api";
 import { useMapStore } from "./map";
 import { useUiStore } from "./ui";
 
@@ -13,6 +13,8 @@ type RefreshReason = "poll" | "viewport" | "manual";
 
 export const useFlightsStore = defineStore("flights", () => {
   const liveFlights = ref<ApiLiveFlight[]>([]);
+  const liveTrajectory = ref<ApiTrajectoryPoint[]>([]);
+  const isLoadingTrajectory = ref(false);
   const liveCapabilities = ref<ApiLiveFlightCapabilities>({
     provider: "unknown",
     supports_history: false,
@@ -229,6 +231,45 @@ export const useFlightsStore = defineStore("flights", () => {
     }
   }
 
+  async function loadTrajectory(icao24: string | null): Promise<void> {
+    if (!icao24 || !liveCapabilities.value.supports_history) {
+      liveTrajectory.value = [];
+      return;
+    }
+    isLoadingTrajectory.value = true;
+    try {
+      const result = await fetchFlightTrajectory(icao24);
+      const points = result.supports_trajectory ? [...result.points] : [];
+
+      // Inject current position from live data — no extra API call needed
+      const currentFlight = liveFlights.value.find((f) => f.icao24 === icao24);
+      if (currentFlight) {
+        points.push({
+          lat: currentFlight.latitude,
+          lng: currentFlight.longitude,
+          altitude: currentFlight.altitude,
+          heading: currentFlight.heading,
+          velocity: currentFlight.velocity,
+          timestamp: currentFlight.last_contact ?? Math.floor(Date.now() / 1000),
+        });
+      }
+
+      liveTrajectory.value = points;
+    } catch {
+      liveTrajectory.value = [];
+    } finally {
+      isLoadingTrajectory.value = false;
+    }
+  }
+
+  // Watch for flight selection changes and fetch trajectory
+  watch(
+    () => useUiStore().selectedFlightIcao24,
+    (icao24) => {
+      void loadTrajectory(icao24);
+    },
+  );
+
   return {
     consecutiveRateLimitFailures,
     coverageMessage,
@@ -237,10 +278,13 @@ export const useFlightsStore = defineStore("flights", () => {
     effectiveTimeShiftMinutes,
     isLoading,
     isLoadingCapabilities,
+    isLoadingTrajectory,
     isWindowActive,
     liveCapabilities,
     liveFlights,
+    liveTrajectory,
     loadCapabilities,
+    loadTrajectory,
     nextAllowedPollAt,
     pollingHandle,
     pollingEnabled,

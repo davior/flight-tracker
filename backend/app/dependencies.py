@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import Request
+from sqlalchemy.orm import sessionmaker, Session
 
 from app.config import Settings
 from app.services.aircraft_enrichment import AircraftEnrichmentService
@@ -15,6 +16,10 @@ def get_app_settings(request: Request) -> Settings:
 
 def get_live_flight_provider(request: Request) -> LiveFlightProvider:
     return request.app.state.live_flight_provider
+
+
+def get_session_maker(request: Request) -> sessionmaker[Session]:
+    return request.app.state.session_maker
 
 
 def get_enrichment_service(request: Request) -> AircraftEnrichmentService:

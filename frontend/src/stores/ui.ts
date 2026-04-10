@@ -12,6 +12,8 @@ export const useUiStore = defineStore("ui", () => {
   const loggedTimeWindowDays = ref<LoggedTimeWindowDays>(1);
   const reportFlight = ref<ApiLiveFlight | null>(null);
   const selectedLogId = ref<number | null>(null);
+  const detailLogId = ref<number | null>(null);
+  const selectedFlightIcao24 = ref<string | null>(null);
   const manualLocationOpen = ref(false);
   const locationMode = ref<LocationMode>("auto");
   const toast = ref<string | null>(null);
@@ -26,12 +28,14 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   return {
+    detailLogId,
     liveTimeShiftMinutes,
     loggedTimeWindowDays,
     locationMode,
     manualLocationOpen,
     mode,
     reportFlight,
+    selectedFlightIcao24,
     selectedLogId,
     showToast,
     toast,

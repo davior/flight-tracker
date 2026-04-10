@@ -34,6 +34,14 @@ class ADSBxLiveFlightProvider:
             history_step_minutes=HISTORY_STEP_MINUTES,
         )
 
+    def get_flight_by_icao24(
+        self,
+        icao24: str,
+        time_seconds: int | None = None,
+    ) -> LiveFlightRecord | None:
+        # ADS-B Exchange does not support historical position lookup
+        return None
+
     def get_flights_in_bounds(
         self,
         north: float,

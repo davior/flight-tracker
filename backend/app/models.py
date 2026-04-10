@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Float, ForeignKey, Numeric, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -36,6 +36,7 @@ class FlightLog(Base):
     logger_latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     logger_longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     note: Mapped[str | None] = mapped_column(Text)
+    trajectory: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     photos: Mapped[list["FlightLogPhoto"]] = relationship(
         back_populates="flight_log",

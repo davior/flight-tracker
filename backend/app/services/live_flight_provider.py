@@ -49,3 +49,9 @@ class LiveFlightProvider(Protocol):
         west: float,
         time_seconds: int | None = None,
     ) -> list[LiveFlightRecord]: ...
+
+    def get_flight_by_icao24(
+        self,
+        icao24: str,
+        time_seconds: int | None = None,
+    ) -> LiveFlightRecord | None: ...

@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import logging
 import mimetypes
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, sessionmaker, selectinload
 
 from app.config import Settings
 from app.db import get_db
-from app.dependencies import get_app_settings, get_enrichment_service, get_image_storage_service
+from app.dependencies import get_app_settings, get_enrichment_service, get_image_storage_service, get_live_flight_provider, get_session_maker
 from app.models import AircraftRegistry, FlightLog, FlightLogPhoto
 from app.serializers import resolve_log_coordinates, serialize_flight_log, serialize_nearby_log
 from app.schemas import (
@@ -24,7 +25,12 @@ from app.schemas import (
 from app.services.aircraft_enrichment import AircraftEnrichmentService
 from app.services.aircraft_categories import load_aircraft_category_map, normalize_aircraft_category_code
 from app.services.image_storage import ImageStorageError, ImageStorageService, UnsupportedImageError
+from app.services.live_flight_provider import LiveFlightProvider
+from app.schemas import TrajectoryPoint
+from app.services.trajectory import build_trajectory
 from app.utils.geo import center_from_bounds, haversine_distance_km, radius_from_bounds
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/logs", tags=["logs"])
@@ -33,6 +39,47 @@ photo_router = APIRouter(tags=["photos"])
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _build_and_store_trajectory(
+    flight_log_id: int,
+    icao24: str,
+    reference_time: int,
+    provider: LiveFlightProvider,
+    session_factory: sessionmaker,
+    current_lat: float | None,
+    current_lng: float | None,
+    current_altitude: float | None,
+    current_heading: float | None,
+    current_velocity: float | None,
+) -> None:
+    """Background task: build trajectory for a logged flight and persist it."""
+    try:
+        if not provider.capabilities.supports_history:
+            return
+        points = build_trajectory(provider, icao24, reference_time)
+        # Inject the logged position as the most-recent point — no extra API call
+        if current_lat is not None and current_lng is not None:
+            points.append(TrajectoryPoint(
+                lat=current_lat,
+                lng=current_lng,
+                altitude=current_altitude,
+                heading=current_heading,
+                velocity=current_velocity,
+                timestamp=reference_time,
+            ))
+        if not points:
+            return
+        session = session_factory()
+        try:
+            log = session.get(FlightLog, flight_log_id)
+            if log is not None:
+                log.trajectory = [p.model_dump() for p in points]
+                session.commit()
+        finally:
+            session.close()
+    except Exception:
+        logger.exception("Failed to build trajectory for flight log %d", flight_log_id)
 
 
 def parse_log_form(
@@ -82,11 +129,14 @@ def parse_log_form(
 
 @router.post("", response_model=FlightLogResponse, status_code=201)
 async def create_log(
+    background_tasks: BackgroundTasks,
     payload: FlightLogCreate = Depends(parse_log_form),
     photos: list[UploadFile] | None = File(default=None),
     db_session: Session = Depends(get_db),
     enrichment_service: AircraftEnrichmentService = Depends(get_enrichment_service),
     image_storage: ImageStorageService = Depends(get_image_storage_service),
+    live_flight_provider: LiveFlightProvider = Depends(get_live_flight_provider),
+    session_factory: sessionmaker = Depends(get_session_maker),
 ) -> FlightLogResponse:
     uploads = photos or []
     if len(uploads) > 3:
@@ -134,6 +184,22 @@ async def create_log(
     if registry and registry.category:
         category_map = load_aircraft_category_map(db_session, [registry.category])
         category = category_map.get(normalize_aircraft_category_code(registry.category) or "")
+
+    reference_time = int(flight_log.flight_time.timestamp())
+    background_tasks.add_task(
+        _build_and_store_trajectory,
+        flight_log_id=flight_log.id,
+        icao24=flight_log.icao24,
+        reference_time=reference_time,
+        provider=live_flight_provider,
+        session_factory=session_factory,
+        current_lat=float(flight_log.aircraft_latitude) if flight_log.aircraft_latitude is not None else None,
+        current_lng=float(flight_log.aircraft_longitude) if flight_log.aircraft_longitude is not None else None,
+        current_altitude=flight_log.altitude,
+        current_heading=flight_log.heading,
+        current_velocity=flight_log.velocity,
+    )
+
     return serialize_flight_log(flight_log, registry, category)
 
 

@@ -3,6 +3,7 @@ import type {
   ApiLiveFlight,
   ApiLiveFlightCapabilities,
   ApiLoggedFlight,
+  ApiTrajectoryResponse,
   CreateLogFields,
   LoggedTimeWindowDays,
   MapBounds,
@@ -105,6 +106,27 @@ export async function fetchLoggedFlights(params: {
     viewer_uuid: params.viewerUuid,
   });
   return fetchJson<ApiLoggedFlight[]>(`/logs/nearby?${search.toString()}`);
+}
+
+export async function fetchFlightTrajectory(
+  icao24: string,
+  opts: {
+    maxHistoryMinutes?: number;
+    stepMinutes?: number;
+    timeShiftMinutes?: number;
+  } = {},
+): Promise<ApiTrajectoryResponse> {
+  const search = new URLSearchParams({ icao24 });
+  if (opts.maxHistoryMinutes !== undefined) {
+    search.set("max_history_minutes", opts.maxHistoryMinutes.toString());
+  }
+  if (opts.stepMinutes !== undefined) {
+    search.set("step_minutes", opts.stepMinutes.toString());
+  }
+  if (opts.timeShiftMinutes !== undefined) {
+    search.set("time_shift_minutes", opts.timeShiftMinutes.toString());
+  }
+  return fetchJson<ApiTrajectoryResponse>(`/flights/${icao24}/trajectory?${search.toString()}`);
 }
 
 export async function createFlightLog(fields: CreateLogFields, files: File[]): Promise<ApiCreatedLog> {

@@ -1,4 +1,19 @@
 export type AppMode = "live" | "logged";
+
+export interface ApiTrajectoryPoint {
+  lat: number;
+  lng: number;
+  altitude: number | null;
+  heading: number | null;
+  velocity: number | null;
+  timestamp: number;
+}
+
+export interface ApiTrajectoryResponse {
+  icao24: string;
+  supports_trajectory: boolean;
+  points: ApiTrajectoryPoint[];
+}
 export type AppView = "map" | "list";
 export type LoggedTimeWindowDays = number;
 
@@ -68,6 +83,7 @@ export interface ApiLoggedFlight {
   logger_latitude: number | null;
   logger_longitude: number | null;
   owner_uuid: string | null;
+  heading: number | null;
   type_code: string | null;
   manufacturer: string | null;
   model: string | null;
@@ -78,6 +94,7 @@ export interface ApiLoggedFlight {
   photos: ApiPhoto[];
   distance_km: number;
   is_owner: boolean;
+  trajectory: ApiTrajectoryPoint[] | null;
 }
 
 export interface ApiCreatedLog {
@@ -109,6 +126,7 @@ export interface ApiCreatedLog {
   category_description: string | null;
   display_type: string | null;
   photos: ApiPhoto[];
+  trajectory: ApiTrajectoryPoint[] | null;
 }
 
 export interface CreateLogFields {
