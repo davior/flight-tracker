@@ -75,6 +75,7 @@ class FlightLogPhoto(Base):
         index=True,
     )
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    media_type: Mapped[str] = mapped_column(String(16), nullable=False, default="image", server_default="image")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     flight_log: Mapped[FlightLog] = relationship(back_populates="photos")

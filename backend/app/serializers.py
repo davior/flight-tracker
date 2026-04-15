@@ -23,6 +23,7 @@ def serialize_photo(photo: FlightLogPhoto) -> PhotoResponse:
         id=photo.id,
         file_path=photo.file_path,
         url=photo_url(photo.id),
+        media_type=photo.media_type,
         created_at=photo.created_at,
     )
 

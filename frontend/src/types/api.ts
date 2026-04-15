@@ -40,6 +40,7 @@ export interface ApiPhoto {
   id: number;
   file_path: string;
   url: string;
+  media_type: string;
   created_at: string;
 }
 

@@ -38,7 +38,7 @@ function appendFiles(fileList: FileList | null): void {
   }
   const nextFiles = [...files.value, ...Array.from(fileList)].slice(0, 3);
   if (nextFiles.length < files.value.length + fileList.length) {
-    emit("invalid", "You can upload a maximum of 3 photos.");
+    emit("invalid", "You can upload a maximum of 3 files.");
   }
   files.value = nextFiles;
   syncPreviews();
@@ -109,14 +109,29 @@ onBeforeUnmount(() => {
           <input class="hidden" type="file" accept="image/*" capture="environment" @change="appendFiles(($event.target as HTMLInputElement).files)" />
         </label>
         <label class="flex-1 cursor-pointer rounded-3xl border border-dashed border-[var(--border)] bg-white/70 px-4 py-4 text-center text-sm font-semibold">
-          Upload photos
-          <input class="hidden" type="file" accept="image/png,image/jpeg" multiple @change="appendFiles(($event.target as HTMLInputElement).files)" />
+          Upload photos / video
+          <input class="hidden" type="file" accept="image/png,image/jpeg,video/mp4,video/quicktime,video/webm" multiple @change="appendFiles(($event.target as HTMLInputElement).files)" />
         </label>
       </div>
 
       <div v-if="previews.length" class="mt-4 grid grid-cols-3 gap-3">
         <div v-for="(preview, index) in previews" :key="preview" class="relative">
-          <img :src="preview" alt="" class="h-24 w-full rounded-2xl object-cover" />
+          <video
+            v-if="files[index]?.type.startsWith('video/')"
+            :src="preview"
+            class="h-24 w-full rounded-2xl object-cover"
+            muted
+            playsinline
+          />
+          <img v-else :src="preview" alt="" class="h-24 w-full rounded-2xl object-cover" />
+          <div
+            v-if="files[index]?.type.startsWith('video/')"
+            class="absolute inset-0 flex items-center justify-center pointer-events-none"
+          >
+            <svg class="h-8 w-8 text-white drop-shadow-lg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
           <button
             class="absolute right-2 top-2 rounded-full bg-slate-950/70 px-2 py-1 text-xs font-semibold text-white"
             @click="removeFile(index)"

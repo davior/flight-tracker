@@ -8,40 +8,51 @@ from uuid import uuid4
 from PIL import Image, ImageOps, PngImagePlugin
 
 
-SUPPORTED_CONTENT_TYPES = {"image/jpeg", "image/png"}
-SUPPORTED_FORMATS = {"JPEG", "PNG"}
+SUPPORTED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png"}
+SUPPORTED_IMAGE_FORMATS = {"JPEG", "PNG"}
+SUPPORTED_VIDEO_CONTENT_TYPES = {"video/mp4", "video/quicktime", "video/webm"}
+VIDEO_EXTENSIONS: dict[str, str] = {
+    "video/mp4": ".mp4",
+    "video/quicktime": ".mov",
+    "video/webm": ".webm",
+}
 MAX_DIMENSION = 1600
 
 
 class ImageStorageError(RuntimeError):
-    """Raised when an image cannot be processed or persisted."""
+    """Raised when a media file cannot be processed or persisted."""
 
 
 class UnsupportedImageError(ImageStorageError):
-    """Raised when an upload is not a supported image type."""
+    """Raised when an upload is not a supported image or video type."""
 
 
 @dataclass(slots=True)
-class StoredImage:
+class StoredMedia:
     relative_path: str
     absolute_path: Path
+    media_type: str  # "image" or "video"
+
+
+# Keep backward-compatible alias
+StoredImage = StoredMedia
 
 
 class ImageStorageService:
     def __init__(self, upload_dir: Path):
         self.upload_dir = upload_dir
 
-    async def save_uploads(self, log_id: int, uploads: list) -> list[StoredImage]:
+    async def save_uploads(self, log_id: int, uploads: list) -> list[StoredMedia]:
         target_dir = self.upload_dir / "flight_logs" / str(log_id)
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        stored_images: list[StoredImage] = []
+        stored: list[StoredMedia] = []
         for upload in uploads:
-            stored_images.append(await self._store_single(target_dir, upload))
-        return stored_images
+            stored.append(await self._store_single(target_dir, upload))
+        return stored
 
-    def cleanup(self, stored_images: list[StoredImage]) -> None:
-        for item in stored_images:
+    def cleanup(self, stored: list[StoredMedia]) -> None:
+        for item in stored:
             try:
                 item.absolute_path.unlink(missing_ok=True)
             except OSError:
@@ -55,15 +66,25 @@ class ImageStorageService:
             except OSError:
                 continue
 
-    async def _store_single(self, target_dir: Path, upload) -> StoredImage:
-        if upload.content_type not in SUPPORTED_CONTENT_TYPES:
-            raise UnsupportedImageError("Only JPEG and PNG uploads are supported")
+    async def _store_single(self, target_dir: Path, upload) -> StoredMedia:
+        content_type = upload.content_type or ""
 
+        if content_type in SUPPORTED_VIDEO_CONTENT_TYPES:
+            return await self._store_video(target_dir, upload, content_type)
+
+        if content_type in SUPPORTED_IMAGE_CONTENT_TYPES:
+            return await self._store_image(target_dir, upload)
+
+        raise UnsupportedImageError(
+            "Only JPEG, PNG, MP4, MOV, and WebM uploads are supported"
+        )
+
+    async def _store_image(self, target_dir: Path, upload) -> StoredMedia:
         payload = await upload.read()
         try:
             with Image.open(BytesIO(payload)) as image:
                 image.load()
-                if image.format not in SUPPORTED_FORMATS:
+                if image.format not in SUPPORTED_IMAGE_FORMATS:
                     raise UnsupportedImageError("Only JPEG and PNG uploads are supported")
                 return self._save_processed_image(target_dir, image)
         except UnsupportedImageError:
@@ -71,7 +92,25 @@ class ImageStorageService:
         except Exception as exc:
             raise ImageStorageError("Image processing failed") from exc
 
-    def _save_processed_image(self, target_dir: Path, image: Image.Image) -> StoredImage:
+    async def _store_video(self, target_dir: Path, upload, content_type: str) -> StoredMedia:
+        extension = VIDEO_EXTENSIONS[content_type]
+        filename = f"{uuid4().hex}{extension}"
+        absolute_path = target_dir / filename
+        relative_path = str(Path("flight_logs") / target_dir.name / filename)
+
+        payload = await upload.read()
+        try:
+            absolute_path.write_bytes(payload)
+        except OSError as exc:
+            raise ImageStorageError("Video storage failed") from exc
+
+        return StoredMedia(
+            relative_path=relative_path,
+            absolute_path=absolute_path,
+            media_type="video",
+        )
+
+    def _save_processed_image(self, target_dir: Path, image: Image.Image) -> StoredMedia:
         original_format = image.format or ""
         processed = ImageOps.exif_transpose(image)
         processed.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.Resampling.LANCZOS)
@@ -83,7 +122,11 @@ class ImageStorageService:
 
         save_kwargs = self._build_save_kwargs(processed, image)
         processed.save(absolute_path, format=original_format, **save_kwargs)
-        return StoredImage(relative_path=relative_path, absolute_path=absolute_path)
+        return StoredMedia(
+            relative_path=relative_path,
+            absolute_path=absolute_path,
+            media_type="image",
+        )
 
     def _build_save_kwargs(self, processed: Image.Image, original: Image.Image) -> dict[str, object]:
         if original.format == "JPEG":
