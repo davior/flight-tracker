@@ -142,7 +142,7 @@ async def create_log(
 ) -> FlightLogResponse:
     uploads = photos or []
     if len(uploads) > 3:
-        raise HTTPException(status_code=400, detail="A maximum of 3 photos is allowed")
+        raise HTTPException(status_code=400, detail="A maximum of 3 files is allowed")
 
     stored_images = []
     registry = None
@@ -162,7 +162,10 @@ async def create_log(
         registry = enrichment_service.enrich(db_session, payload.icao24)
         stored_images = await image_storage.save_uploads(flight_log.id, uploads)
         for stored_image in stored_images:
-            flight_log.photos.append(FlightLogPhoto(file_path=stored_image.relative_path))
+            flight_log.photos.append(FlightLogPhoto(
+                file_path=stored_image.relative_path,
+                media_type=stored_image.media_type,
+            ))
 
         db_session.flush()
         db_session.commit()

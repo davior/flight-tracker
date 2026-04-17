@@ -6,6 +6,7 @@ import { formatDistance } from "@/lib/geo";
 import type { ApiLoggedFlight } from "@/types/api";
 import { useLogsStore } from "@/stores/logs";
 import { useUiStore } from "@/stores/ui";
+import MediaViewer from "@/components/MediaViewer.vue";
 
 function loggedByLine(flight: ApiLoggedFlight): string | null {
   if (!flight.owner_username) {
@@ -31,6 +32,14 @@ const editNote = ref("");
 const isSaving = ref(false);
 const isDeleting = ref(false);
 const confirmingDelete = ref(false);
+
+const viewerOpen = ref(false);
+const viewerStartIndex = ref(0);
+
+function openViewer(index: number) {
+  viewerStartIndex.value = index;
+  viewerOpen.value = true;
+}
 
 function startEdit() {
   editNote.value = props.flight?.note ?? "";
@@ -136,13 +145,29 @@ async function confirmDelete() {
       <p v-else class="mt-4 rounded-3xl bg-white/70 p-4 text-sm text-[var(--muted)]">{{ flight.note || "No note added." }}</p>
 
       <div v-if="flight.photos.length" class="mt-4 grid grid-cols-3 gap-3">
-        <img
-          v-for="photo in flight.photos"
+        <button
+          v-for="(photo, index) in flight.photos"
           :key="photo.id"
-          :src="photo.url"
-          alt=""
-          class="h-24 w-full rounded-2xl object-cover"
-        />
+          class="relative cursor-pointer overflow-hidden rounded-2xl"
+          @click="openViewer(index)"
+        >
+          <video
+            v-if="photo.media_type === 'video'"
+            :src="photo.url"
+            class="h-24 w-full object-cover"
+            muted
+            playsinline
+          />
+          <img v-else :src="photo.url" alt="" class="h-24 w-full object-cover" />
+          <div
+            v-if="photo.media_type === 'video'"
+            class="absolute inset-0 flex items-center justify-center bg-black/20"
+          >
+            <svg class="h-8 w-8 text-white drop-shadow-lg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </button>
       </div>
 
       <template v-if="flight.is_owner && !isEditing">
@@ -235,13 +260,29 @@ async function confirmDelete() {
     <p v-else class="mt-4 rounded-3xl bg-white/70 p-4 text-sm text-[var(--muted)]">{{ flight.note || "No note added." }}</p>
 
     <div v-if="flight.photos.length" class="mt-4 grid grid-cols-3 gap-3">
-      <img
-        v-for="photo in flight.photos"
+      <button
+        v-for="(photo, index) in flight.photos"
         :key="photo.id"
-        :src="photo.url"
-        alt=""
-        class="h-24 w-full rounded-2xl object-cover"
-      />
+        class="relative cursor-pointer overflow-hidden rounded-2xl"
+        @click="openViewer(index)"
+      >
+        <video
+          v-if="photo.media_type === 'video'"
+          :src="photo.url"
+          class="h-24 w-full object-cover"
+          muted
+          playsinline
+        />
+        <img v-else :src="photo.url" alt="" class="h-24 w-full object-cover" />
+        <div
+          v-if="photo.media_type === 'video'"
+          class="absolute inset-0 flex items-center justify-center bg-black/20"
+        >
+          <svg class="h-8 w-8 text-white drop-shadow-lg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </div>
+      </button>
     </div>
 
     <template v-if="flight.is_owner && !isEditing">
@@ -273,4 +314,12 @@ async function confirmDelete() {
       </div>
     </template>
   </aside>
+
+  <MediaViewer
+    v-if="flight"
+    :media="flight.photos"
+    :start-index="viewerStartIndex"
+    :open="viewerOpen"
+    @close="viewerOpen = false"
+  />
 </template>

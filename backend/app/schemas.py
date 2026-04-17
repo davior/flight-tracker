@@ -128,6 +128,7 @@ class PhotoResponse(BaseModel):
     id: int
     file_path: str
     url: str
+    media_type: str
     created_at: datetime
 
 
