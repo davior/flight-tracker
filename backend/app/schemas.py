@@ -78,7 +78,6 @@ class FlightLogCreate(BaseModel):
     velocity: float | None = None
     heading: float | None = None
     vertical_rate: float | None = None
-    owner_uuid: str | None = None
     logger_name: str | None = None
     logger_location: str | None = None
     logger_latitude: Decimal | None = None
@@ -129,6 +128,7 @@ class PhotoResponse(BaseModel):
     id: int
     file_path: str
     url: str
+    media_type: str
     created_at: datetime
 
 
@@ -165,6 +165,8 @@ class FlightLogResponse(BaseModel):
     heading: float | None = None
     vertical_rate: float | None = None
     owner_uuid: str | None = None
+    owner_id: int | None = None
+    owner_username: str | None = None
     logger_name: str | None = None
     logger_location: str | None = None
     logger_latitude: Decimal | None = None
@@ -194,6 +196,8 @@ class LoggedFlightNearbyResponse(BaseModel):
     logger_latitude: Decimal | None = None
     logger_longitude: Decimal | None = None
     owner_uuid: str | None = None
+    owner_id: int | None = None
+    owner_username: str | None = None
     heading: float | None = None
     type_code: str | None = None
     manufacturer: str | None = None
@@ -206,3 +210,71 @@ class LoggedFlightNearbyResponse(BaseModel):
     distance_km: float
     is_owner: bool
     trajectory: list[TrajectoryPoint] | None = None
+
+
+# ---------------------------------------------------------------------------
+# Auth schemas
+# ---------------------------------------------------------------------------
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    username: str
+    is_verified: bool
+    tutorial_seen: bool
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
+
+
+class RegisterRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: str
+    username: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    login: str   # email or username
+    password: str
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class ResendVerificationRequest(BaseModel):
+    pass
+
+
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+
+class PatchLogRequest(BaseModel):
+    note: str | None = None
+
+
+class UpdateProfileRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    username: str | None = None
+    current_password: str | None = None
+    new_password: str | None = None

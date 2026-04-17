@@ -1,11 +1,10 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-import { fetchLoggedFlights } from "@/lib/api";
+import { deleteLog as apiDeleteLog, fetchLoggedFlights, patchLog as apiPatchLog } from "@/lib/api";
 import { deriveRadiusFromBounds } from "@/lib/geo";
 import { sortLoggedFlightsNearestFirst } from "@/lib/logs";
 import type { ApiLoggedFlight } from "@/types/api";
-import { useIdentityStore } from "./identity";
 import { useMapStore } from "./map";
 import { useUiStore } from "./ui";
 
@@ -20,7 +19,6 @@ export const useLogsStore = defineStore("logs", () => {
 
   async function refresh(): Promise<void> {
     const mapStore = useMapStore();
-    const identityStore = useIdentityStore();
     const uiStore = useUiStore();
     if (!mapStore.query) {
       return;
@@ -41,7 +39,6 @@ export const useLogsStore = defineStore("logs", () => {
       loggedFlights.value = await fetchLoggedFlights({
         bounds: query.bounds,
         timeWindowDays: uiStore.loggedTimeWindowDays,
-        viewerUuid: identityStore.ensureIdentity(),
       });
     } catch (nextError) {
       error.value = nextError instanceof Error ? nextError.message : "Unable to fetch logged flights";
@@ -57,11 +54,26 @@ export const useLogsStore = defineStore("logs", () => {
     return loggedFlights.value.find((flight) => flight.id === id) ?? null;
   }
 
+  async function deleteLogById(id: number): Promise<void> {
+    await apiDeleteLog(id);
+    loggedFlights.value = loggedFlights.value.filter((f) => f.id !== id);
+  }
+
+  async function patchLogNote(id: number, note: string | null): Promise<void> {
+    await apiPatchLog(id, note);
+    const index = loggedFlights.value.findIndex((f) => f.id === id);
+    if (index !== -1) {
+      loggedFlights.value[index] = { ...loggedFlights.value[index], note };
+    }
+  }
+
   return {
     byId,
+    deleteLogById,
     error,
     isLoading,
     loggedFlights,
+    patchLogNote,
     refresh,
     sortedFlights,
   };

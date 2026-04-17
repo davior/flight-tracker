@@ -2,7 +2,9 @@
 import type { Map as LeafletMap } from "leaflet";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
+import AuthModal from "@/components/AuthModal.vue";
 import BottomModeNav from "@/components/BottomModeNav.vue";
+import EmailVerificationScreen from "@/components/EmailVerificationScreen.vue";
 import FlightListPanel from "@/components/FlightListPanel.vue";
 import FloatingControls from "@/components/FloatingControls.vue";
 import LoggedFlightDetailDrawer from "@/components/LoggedFlightDetailDrawer.vue";
@@ -10,18 +12,21 @@ import LoggedTimeWindowBar from "@/components/LoggedTimeWindowBar.vue";
 import LiveTimeShiftBar from "@/components/LiveTimeShiftBar.vue";
 import ManualLocationSheet from "@/components/ManualLocationSheet.vue";
 import MapShell from "@/components/MapShell.vue";
+import PasswordResetModal from "@/components/PasswordResetModal.vue";
 import ReportFlightModal from "@/components/ReportFlightModal.vue";
 import ToastStack from "@/components/ToastStack.vue";
+import TutorialModal from "@/components/TutorialModal.vue";
+import UserProfileSheet from "@/components/UserProfileSheet.vue";
 import ViewToggle from "@/components/ViewToggle.vue";
 import { createFlightLog } from "@/lib/api";
 import { useDebouncedTask } from "@/composables/useDebouncedTask";
+import { useAuthStore } from "@/stores/auth";
 import { useFlightsStore } from "@/stores/flights";
-import { useIdentityStore } from "@/stores/identity";
 import { useLogsStore } from "@/stores/logs";
 import { useMapStore } from "@/stores/map";
 import { useUiStore } from "@/stores/ui";
 
-const identityStore = useIdentityStore();
+const authStore = useAuthStore();
 const mapStore = useMapStore();
 const flightsStore = useFlightsStore();
 const logsStore = useLogsStore();
@@ -30,6 +35,7 @@ const uiStore = useUiStore();
 const mapInstance = ref<LeafletMap | null>(null);
 const reporting = ref(false);
 const manualLocationSelecting = ref(false);
+const profileSheetOpen = ref(false);
 const { schedule } = useDebouncedTask(400);
 
 const selectedLoggedFlight = computed(() => logsStore.byId(uiStore.selectedLogId));
@@ -136,7 +142,6 @@ async function handleReportSubmit(payload: { note: string; files: File[] }): Pro
   }
   reporting.value = true;
   try {
-    const currentUser = identityStore.ensureIdentity();
     const currentLocation = mapStore.userLocation ?? mapStore.center;
     const flightTime = uiStore.reportFlight.last_contact
       ? new Date(uiStore.reportFlight.last_contact * 1000).toISOString()
@@ -152,7 +157,6 @@ async function handleReportSubmit(payload: { note: string; files: File[] }): Pro
         velocity: uiStore.reportFlight.velocity,
         heading: uiStore.reportFlight.heading,
         vertical_rate: uiStore.reportFlight.vertical_rate,
-        owner_uuid: currentUser,
         logger_latitude: currentLocation?.lat ?? null,
         logger_longitude: currentLocation?.lon ?? null,
         note: payload.note,
@@ -210,8 +214,35 @@ function handleLoggedTimeWindowUpdate(value: number): void {
   scheduleRefresh("manual");
 }
 
+const resetToken = ref<string | null>(null);
+
 onMounted(async () => {
-  identityStore.ensureIdentity();
+  // Handle email verification and password reset links from emails
+  const params = new URLSearchParams(window.location.search);
+  const verifyToken = params.get("verify_token");
+  const resetTokenParam = params.get("reset_token");
+
+  if (verifyToken) {
+    // Strip token from URL immediately
+    window.history.replaceState({}, "", window.location.pathname);
+    await authStore.verifyEmail(verifyToken).catch(() => {
+      /* will fall through to auth gate if it fails */
+    });
+  }
+
+  if (resetTokenParam) {
+    window.history.replaceState({}, "", window.location.pathname);
+    resetToken.value = resetTokenParam;
+  }
+
+  // Initialize auth (validate stored JWT)
+  await authStore.initialize();
+
+  // Listen for 401 responses (token expired mid-session)
+  window.addEventListener("auth:unauthorized", () => {
+    authStore.logout();
+  });
+
   syncWindowActivity();
   window.addEventListener("focus", syncWindowActivity);
   window.addEventListener("blur", syncWindowActivity);
@@ -284,8 +315,31 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="relative h-screen overflow-hidden text-[var(--ink)]">
+    <!-- Auth loading splash -->
+    <div v-if="authStore.isLoading" class="absolute inset-0 z-[3000] flex items-center justify-center bg-slate-950">
+      <div class="flex flex-col items-center gap-3">
+        <svg class="h-10 w-10 animate-spin text-[var(--accent)]" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <p class="text-sm text-[var(--muted)]">Loading…</p>
+      </div>
+    </div>
+
+    <!-- Password reset (highest priority — from email link) -->
+    <PasswordResetModal v-if="resetToken" :token="resetToken" @done="resetToken = null" />
+
+    <!-- Auth gate -->
+    <AuthModal v-else-if="!authStore.isLoading && !authStore.isAuthenticated" />
+
+    <!-- Email verification required -->
+    <EmailVerificationScreen v-else-if="authStore.needsVerification" />
+
+    <!-- One-time tutorial -->
+    <TutorialModal v-else-if="authStore.needsTutorial" @done="authStore.markTutorialSeen()" />
+    <!-- Main app — only shown when authenticated, verified and tutorial seen -->
     <MapShell
-      v-if="uiStore.view === 'map'"
+      v-if="uiStore.view === 'map' && authStore.isAuthenticated && !authStore.needsVerification && !authStore.needsTutorial"
       :center="mapStore.center"
       :zoom="mapStore.zoom"
       :mode="uiStore.mode"
@@ -305,7 +359,7 @@ onBeforeUnmount(() => {
       @ready="handleMapReady"
     />
 
-    <section v-else class="absolute inset-0 overflow-hidden bg-slate-100/80">
+    <section v-else-if="authStore.isAuthenticated && !authStore.needsVerification && !authStore.needsTutorial" class="absolute inset-0 overflow-hidden bg-slate-100/80">
       <div class="grid h-full md:grid-cols-[minmax(0,1fr)_24rem]">
         <FlightListPanel
           :mode="uiStore.mode"
@@ -321,58 +375,66 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <ViewToggle :view="uiStore.view" @update:view="uiStore.view = $event" />
-    <FloatingControls
-      @location="openLocationSettings"
-      @refresh="refreshCurrentMode('manual')"
-    />
-    <div
-      v-if="uiStore.mode === 'live' && uiStore.view === 'map' && flightsStore.coverageMessage"
-      class="glass-panel absolute left-1/2 top-4 z-[900] max-w-sm -translate-x-1/2 rounded-2xl px-4 py-3 text-center text-sm font-medium text-[var(--muted)]"
-    >
-      {{ flightsStore.coverageMessage }}
-    </div>
-    <ToastStack :message="uiStore.toast" />
+    <template v-if="authStore.isAuthenticated && !authStore.needsVerification && !authStore.needsTutorial">
+      <ViewToggle :view="uiStore.view" @update:view="uiStore.view = $event" />
+      <FloatingControls
+        @location="openLocationSettings"
+        @refresh="refreshCurrentMode('manual')"
+        @profile="profileSheetOpen = true"
+      />
+      <div
+        v-if="uiStore.mode === 'live' && uiStore.view === 'map' && flightsStore.coverageMessage"
+        class="glass-panel absolute left-1/2 top-4 z-[900] max-w-sm -translate-x-1/2 rounded-2xl px-4 py-3 text-center text-sm font-medium text-[var(--muted)]"
+      >
+        {{ flightsStore.coverageMessage }}
+      </div>
+      <ToastStack :message="uiStore.toast" />
 
-    <LoggedFlightDetailDrawer
-      v-if="uiStore.view === 'map'"
-      :flight="detailLoggedFlight"
-      @close="uiStore.detailLogId = null"
-    />
+      <LoggedFlightDetailDrawer
+        v-if="uiStore.view === 'map'"
+        :flight="detailLoggedFlight"
+        @close="uiStore.detailLogId = null"
+      />
 
-    <LiveTimeShiftBar
-      v-if="uiStore.mode === 'live'"
-      :value="uiStore.liveTimeShiftMinutes"
-      :disabled="liveTimeShiftDisabled"
-      :helper-text="liveTimeShiftHelperText"
-      @update:value="handleLiveTimeShiftUpdate"
-    />
+      <LiveTimeShiftBar
+        v-if="uiStore.mode === 'live'"
+        :value="uiStore.liveTimeShiftMinutes"
+        :disabled="liveTimeShiftDisabled"
+        :helper-text="liveTimeShiftHelperText"
+        @update:value="handleLiveTimeShiftUpdate"
+      />
 
-    <LoggedTimeWindowBar
-      v-if="uiStore.mode === 'logged'"
-      :value="uiStore.loggedTimeWindowDays"
-      @update:value="handleLoggedTimeWindowUpdate"
-    />
+      <LoggedTimeWindowBar
+        v-if="uiStore.mode === 'logged'"
+        :value="uiStore.loggedTimeWindowDays"
+        @update:value="handleLoggedTimeWindowUpdate"
+      />
 
-    <BottomModeNav :mode="uiStore.mode" @update:mode="uiStore.mode = $event" />
+      <BottomModeNav :mode="uiStore.mode" @update:mode="uiStore.mode = $event" />
 
-    <ReportFlightModal
-      :open="Boolean(uiStore.reportFlight)"
-      :flight="uiStore.reportFlight"
-      :submitting="reporting"
-      @close="uiStore.reportFlight = null"
-      @submit="handleReportSubmit"
-      @invalid="uiStore.showToast($event)"
-    />
+      <ReportFlightModal
+        :open="Boolean(uiStore.reportFlight)"
+        :flight="uiStore.reportFlight"
+        :submitting="reporting"
+        @close="uiStore.reportFlight = null"
+        @submit="handleReportSubmit"
+        @invalid="uiStore.showToast($event)"
+      />
 
-    <ManualLocationSheet
-      :open="uiStore.manualLocationOpen"
-      :display-location="locationSettingsDisplayLocation"
-      :selecting-on-map="manualLocationSelecting"
-      :location-mode="uiStore.locationMode"
-      @close="closeLocationSettings"
-      @submit="handleLocationSettingsSubmit"
-      @update-location-mode="setLocationMode"
-    />
+      <ManualLocationSheet
+        :open="uiStore.manualLocationOpen"
+        :display-location="locationSettingsDisplayLocation"
+        :selecting-on-map="manualLocationSelecting"
+        :location-mode="uiStore.locationMode"
+        @close="closeLocationSettings"
+        @submit="handleLocationSettingsSubmit"
+        @update-location-mode="setLocationMode"
+      />
+
+      <UserProfileSheet
+        :open="profileSheetOpen"
+        @close="profileSheetOpen = false"
+      />
+    </template>
   </main>
 </template>

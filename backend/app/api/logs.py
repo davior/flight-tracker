@@ -13,13 +13,14 @@ from sqlalchemy.orm import Session, sessionmaker, selectinload
 
 from app.config import Settings
 from app.db import get_db
-from app.dependencies import get_app_settings, get_enrichment_service, get_image_storage_service, get_live_flight_provider, get_session_maker
-from app.models import AircraftRegistry, FlightLog, FlightLogPhoto
+from app.dependencies import get_app_settings, get_enrichment_service, get_image_storage_service, get_live_flight_provider, get_optional_current_user, get_current_user, get_session_maker
+from app.models import AircraftRegistry, FlightLog, FlightLogPhoto, User
 from app.serializers import resolve_log_coordinates, serialize_flight_log, serialize_nearby_log
 from app.schemas import (
     FlightLogCreate,
     FlightLogResponse,
     LoggedFlightNearbyResponse,
+    PatchLogRequest,
     parse_time_window_days,
 )
 from app.services.aircraft_enrichment import AircraftEnrichmentService
@@ -45,6 +46,7 @@ def _build_and_store_trajectory(
     flight_log_id: int,
     icao24: str,
     reference_time: int,
+    logged_point_time: int,
     provider: LiveFlightProvider,
     session_factory: sessionmaker,
     current_lat: float | None,
@@ -66,8 +68,9 @@ def _build_and_store_trajectory(
                 altitude=current_altitude,
                 heading=current_heading,
                 velocity=current_velocity,
-                timestamp=reference_time,
+                timestamp=logged_point_time,
             ))
+        points.sort(key=lambda point: point.timestamp)
         if not points:
             return
         session = session_factory()
@@ -95,7 +98,6 @@ def parse_log_form(
     velocity: float | None = Form(None),
     heading: float | None = Form(None),
     vertical_rate: float | None = Form(None),
-    owner_uuid: str | None = Form(None),
     logger_name: str | None = Form(None),
     logger_location: str | None = Form(None),
     logger_latitude: str | None = Form(None),
@@ -116,7 +118,6 @@ def parse_log_form(
             velocity=velocity,
             heading=heading,
             vertical_rate=vertical_rate,
-            owner_uuid=owner_uuid,
             logger_name=logger_name,
             logger_location=logger_location,
             logger_latitude=logger_latitude,
@@ -132,6 +133,7 @@ async def create_log(
     background_tasks: BackgroundTasks,
     payload: FlightLogCreate = Depends(parse_log_form),
     photos: list[UploadFile] | None = File(default=None),
+    current_user: User = Depends(get_current_user),
     db_session: Session = Depends(get_db),
     enrichment_service: AircraftEnrichmentService = Depends(get_enrichment_service),
     image_storage: ImageStorageService = Depends(get_image_storage_service),
@@ -140,7 +142,7 @@ async def create_log(
 ) -> FlightLogResponse:
     uploads = photos or []
     if len(uploads) > 3:
-        raise HTTPException(status_code=400, detail="A maximum of 3 photos is allowed")
+        raise HTTPException(status_code=400, detail="A maximum of 3 files is allowed")
 
     stored_images = []
     registry = None
@@ -151,14 +153,19 @@ async def create_log(
             payload_data["created_at"] = fallback_timestamp
             payload_data["flight_time"] = fallback_timestamp
 
+        payload_data["owner_id"] = current_user.id
         flight_log = FlightLog(**payload_data)
+        flight_log.owner = current_user
         db_session.add(flight_log)
         db_session.flush()
 
         registry = enrichment_service.enrich(db_session, payload.icao24)
         stored_images = await image_storage.save_uploads(flight_log.id, uploads)
         for stored_image in stored_images:
-            flight_log.photos.append(FlightLogPhoto(file_path=stored_image.relative_path))
+            flight_log.photos.append(FlightLogPhoto(
+                file_path=stored_image.relative_path,
+                media_type=stored_image.media_type,
+            ))
 
         db_session.flush()
         db_session.commit()
@@ -185,12 +192,14 @@ async def create_log(
         category_map = load_aircraft_category_map(db_session, [registry.category])
         category = category_map.get(normalize_aircraft_category_code(registry.category) or "")
 
-    reference_time = int(flight_log.flight_time.timestamp())
+    reference_time = int(flight_log.created_at.timestamp())
+    logged_point_time = int(flight_log.flight_time.timestamp())
     background_tasks.add_task(
         _build_and_store_trajectory,
         flight_log_id=flight_log.id,
         icao24=flight_log.icao24,
         reference_time=reference_time,
+        logged_point_time=logged_point_time,
         provider=live_flight_provider,
         session_factory=session_factory,
         current_lat=float(flight_log.aircraft_latitude) if flight_log.aircraft_latitude is not None else None,
@@ -210,7 +219,7 @@ def get_nearby_logs(
     east: float = Query(...),
     west: float = Query(...),
     time_window_days: float = Query(1.0),
-    viewer_uuid: str | None = Query(None),
+    current_user: User | None = Depends(get_optional_current_user),
     settings: Settings = Depends(get_app_settings),
     db_session: Session = Depends(get_db),
 ) -> list[LoggedFlightNearbyResponse]:
@@ -232,8 +241,12 @@ def get_nearby_logs(
     cutoff = datetime.now(timezone.utc) - window
     logs = db_session.execute(
         select(FlightLog)
-        .options(selectinload(FlightLog.photos))
-        .where(FlightLog.flight_time >= cutoff)
+        .options(selectinload(FlightLog.photos), selectinload(FlightLog.owner))
+        .where(
+            FlightLog.flight_time >= cutoff,
+            FlightLog.aircraft_latitude.between(south, north),
+            FlightLog.aircraft_longitude.between(west, east),
+        )
     ).scalars()
     log_items = list(logs)
     center_lat, center_lon = center_from_bounds(north, south, east, west)
@@ -254,14 +267,12 @@ def get_nearby_logs(
         coordinates = resolve_log_coordinates(log)
         if coordinates is None:
             continue
-        if not (south <= coordinates[0] <= north and west <= coordinates[1] <= east):
-            continue
         distance_km = round(haversine_distance_km(center_lat, center_lon, coordinates[0], coordinates[1]), 3)
         results.append(
             serialize_nearby_log(
                 log=log,
                 distance_km=distance_km,
-                viewer_uuid=viewer_uuid,
+                viewer_id=current_user.id if current_user else None,
                 registry=registry_map.get(log.icao24),
                 category=category_map.get(
                     normalize_aircraft_category_code(registry_map[log.icao24].category)
@@ -273,6 +284,47 @@ def get_nearby_logs(
 
     results.sort(key=lambda item: (item.distance_km, -item.flight_time.timestamp()))
     return results
+
+
+@router.delete("/{log_id}", status_code=204)
+def delete_log(
+    log_id: int,
+    current_user: User = Depends(get_current_user),
+    db_session: Session = Depends(get_db),
+    image_storage: ImageStorageService = Depends(get_image_storage_service),
+) -> None:
+    log = db_session.get(FlightLog, log_id, options=[selectinload(FlightLog.photos)])
+    if log is None:
+        raise HTTPException(status_code=404, detail="Flight log not found")
+    if log.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not own this flight log")
+    image_storage.delete_files(log.photos)
+    db_session.delete(log)
+    db_session.commit()
+
+
+@router.patch("/{log_id}", response_model=FlightLogResponse)
+def patch_log(
+    log_id: int,
+    payload: PatchLogRequest,
+    current_user: User = Depends(get_current_user),
+    db_session: Session = Depends(get_db),
+) -> FlightLogResponse:
+    log = db_session.get(FlightLog, log_id, options=[selectinload(FlightLog.photos), selectinload(FlightLog.owner)])
+    if log is None:
+        raise HTTPException(status_code=404, detail="Flight log not found")
+    if log.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not own this flight log")
+    log.note = payload.note
+    db_session.commit()
+    db_session.refresh(log)
+    registry = db_session.get(AircraftRegistry, log.icao24)
+    category = None
+    if registry and registry.category:
+        category_map = load_aircraft_category_map(db_session, [registry.category])
+        from app.services.aircraft_categories import normalize_aircraft_category_code
+        category = category_map.get(normalize_aircraft_category_code(registry.category) or "")
+    return serialize_flight_log(log, registry, category)
 
 
 @photo_router.get("/photos/{photo_id}")

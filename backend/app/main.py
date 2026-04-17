@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.auth import router as auth_router
 from app.api.flights import router as flights_router
 from app.api.logs import photo_router, router as logs_router
 from app.config import Settings, get_settings
@@ -70,6 +71,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             engine.dispose()
 
     application = FastAPI(title="Flight Logger API", lifespan=lifespan)
+    application.include_router(auth_router)
     application.include_router(flights_router)
     application.include_router(logs_router)
     application.include_router(photo_router)

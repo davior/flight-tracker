@@ -126,6 +126,7 @@ describe("MapShell", () => {
         manualLocationSelecting: false,
         liveCoverageBounds: null,
         liveCoverageClamped: false,
+        trajectory: [],
       },
     });
 
@@ -165,6 +166,7 @@ describe("MapShell", () => {
         manualLocationSelecting: false,
         liveCoverageBounds: null,
         liveCoverageClamped: false,
+        trajectory: [],
       },
     });
 
@@ -216,6 +218,7 @@ describe("MapShell", () => {
         manualLocationSelecting: false,
         liveCoverageBounds: null,
         liveCoverageClamped: false,
+        trajectory: [],
       },
     });
 
@@ -257,6 +260,7 @@ describe("MapShell", () => {
         manualLocationSelecting: true,
         liveCoverageBounds: null,
         liveCoverageClamped: false,
+        trajectory: [],
       },
     });
 
@@ -276,6 +280,7 @@ describe("MapShell", () => {
         manualLocationSelecting: false,
         liveCoverageBounds: null,
         liveCoverageClamped: false,
+        trajectory: [],
       },
     });
 
@@ -296,6 +301,7 @@ describe("MapShell", () => {
         manualLocationSelecting: false,
         liveCoverageBounds: { north: -37.7, south: -37.9, east: 145.1, west: 144.8 },
         liveCoverageClamped: true,
+        trajectory: [],
       },
     });
 

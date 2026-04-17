@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { LCircleMarker, LPolyline, LTooltip } from "@vue-leaflet/vue-leaflet";
 
-import { formatTimestamp } from "@/lib/format";
+import { formatUnixTimestamp } from "@/lib/format";
 import type { ApiTrajectoryPoint } from "@/types/api";
 
 const props = withDefaults(
@@ -24,8 +24,7 @@ const lineWeight = computed(() => (props.highlighted ? 3 : 2));
 const lineOpacity = computed(() => (props.highlighted ? 0.9 : 0.75));
 
 function formatTrajectoryTimestamp(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
-  return formatTimestamp(date.toISOString());
+  return formatUnixTimestamp(timestamp);
 }
 </script>
 

@@ -327,7 +327,30 @@ Both values are configurable as query parameters on the trajectory endpoint.
 
 ## User Identity
 
-There are no user accounts. Each browser generates a random **UUID v4** stored in `localStorage` (`owner_uuid`). This UUID is attached to flight logs, allowing the UI to distinguish "your" logs from others' when viewing nearby logs.
+The app uses a **two-tier ownership model**:
+
+### Authenticated users (primary)
+
+Users register with email + password (or Google OAuth) and receive a **JWT** access token. The token is stored in `localStorage` and sent as `Authorization: Bearer {token}` on every API request. The backend validates it via `get_current_user` (in `app/dependencies.py`) and returns the `User` ORM object.
+
+User accounts are stored in the `users` table (added in migration `20260410_0000_c5d8e3f9a012_add_users_and_owner_id.py`). Each `FlightLog` has an `owner_id` FK to `users.id` (`ON DELETE SET NULL`).
+
+Auth endpoints live at `/auth/`:
+- `POST /auth/register` — email + username + password; sends verification email
+- `POST /auth/login` — returns `TokenResponse` with JWT
+- `POST /auth/verify-email` — consumes one-time token from email link
+- `POST /auth/resend-verification` — resend verification email
+- `POST /auth/forgot-password` / `POST /auth/reset-password` — password reset via email
+- `POST /auth/google` — Google OAuth (ID token exchange)
+- `GET /auth/me` — returns current user
+- `PATCH /auth/me` — update username or password
+- `PATCH /auth/me/tutorial-seen` — marks the one-time onboarding tutorial complete
+
+### Anonymous sessions (legacy / fallback)
+
+Browsers without an account generate a random **UUID v4** stored in `localStorage` (`owner_uuid`). This was the original identity mechanism. The `owner_uuid` column is still present on `flight_logs` for backwards compatibility, but new logs written by authenticated users set `owner_id` instead.
+
+The `is_owner` flag in `GET /logs/nearby` responses uses `owner_id` to determine ownership.
 
 ---
 

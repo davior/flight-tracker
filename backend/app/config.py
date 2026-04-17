@@ -36,6 +36,19 @@ class Settings:
     adsbx_api_base_url: str = DEFAULT_ADSBX_API_BASE_URL
     adsbx_db_url: str = DEFAULT_ADSBX_DB_URL
     adsbx_snapshot_max_age_hours: int = 24
+    # Auth
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expiry_days: int = 30
+    # Email (SMTP)
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str = "noreply@example.com"
+    app_base_url: str = "http://localhost:5173"
+    # Google OAuth
+    google_client_id: str | None = None
 
     @property
     def adsbx_snapshot_path(self) -> Path:
@@ -57,6 +70,16 @@ class Settings:
             adsbx_api_base_url=os.getenv("ADSBX_API_BASE_URL", DEFAULT_ADSBX_API_BASE_URL),
             adsbx_db_url=os.getenv("ADSBX_DB_URL", DEFAULT_ADSBX_DB_URL),
             adsbx_snapshot_max_age_hours=int(os.getenv("ADSBX_SNAPSHOT_MAX_AGE_HOURS", "24")),
+            jwt_secret_key=os.getenv("JWT_SECRET_KEY", "change-me-in-production"),
+            jwt_algorithm=os.getenv("JWT_ALGORITHM", "HS256"),
+            jwt_expiry_days=int(os.getenv("JWT_EXPIRY_DAYS", "30")),
+            smtp_host=os.getenv("SMTP_HOST"),
+            smtp_port=int(os.getenv("SMTP_PORT", "587")),
+            smtp_username=os.getenv("SMTP_USERNAME"),
+            smtp_password=os.getenv("SMTP_PASSWORD"),
+            smtp_from_email=os.getenv("SMTP_FROM_EMAIL", "noreply@example.com"),
+            app_base_url=os.getenv("APP_BASE_URL", "http://localhost:5173"),
+            google_client_id=os.getenv("GOOGLE_CLIENT_ID"),
         )
 
     def ensure_directories(self) -> None:

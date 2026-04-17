@@ -23,6 +23,7 @@ def serialize_photo(photo: FlightLogPhoto) -> PhotoResponse:
         id=photo.id,
         file_path=photo.file_path,
         url=photo_url(photo.id),
+        media_type=photo.media_type,
         created_at=photo.created_at,
     )
 
@@ -74,6 +75,8 @@ def serialize_flight_log(
         heading=log.heading,
         vertical_rate=log.vertical_rate,
         owner_uuid=log.owner_uuid,
+        owner_id=log.owner_id,
+        owner_username=log.owner.username if log.owner is not None else None,
         logger_name=log.logger_name,
         logger_location=log.logger_location,
         logger_latitude=log.logger_latitude,
@@ -109,13 +112,17 @@ def resolve_log_coordinates(log: FlightLog) -> tuple[float, float] | None:
 def serialize_nearby_log(
     log: FlightLog,
     distance_km: float,
-    viewer_uuid: str | None,
+    viewer_id: int | None,
     registry: AircraftRegistry | None = None,
     category: AircraftCategory | None = None,
 ) -> LoggedFlightNearbyResponse:
     category_code, category_label, category_description = resolve_aircraft_category_details(
         registry.category if registry else None,
         {category.code: category} if category is not None else {},
+    )
+    # is_owner: prefer owner_id match (new logs), fall back to owner_uuid for legacy records
+    is_owner = (
+        viewer_id is not None and log.owner_id is not None and log.owner_id == viewer_id
     )
     return LoggedFlightNearbyResponse(
         id=log.id,
@@ -129,6 +136,8 @@ def serialize_nearby_log(
         logger_latitude=log.logger_latitude,
         logger_longitude=log.logger_longitude,
         owner_uuid=log.owner_uuid,
+        owner_id=log.owner_id,
+        owner_username=log.owner.username if log.owner is not None else None,
         heading=log.heading,
         type_code=registry.type_code if registry else None,
         manufacturer=registry.manufacturer if registry else None,
@@ -145,6 +154,6 @@ def serialize_nearby_log(
         ),
         photos=[serialize_photo(photo) for photo in log.photos],
         distance_km=distance_km,
-        is_owner=viewer_uuid is not None and log.owner_uuid == viewer_uuid,
+        is_owner=is_owner,
         trajectory=[TrajectoryPoint.model_validate(p) for p in log.trajectory] if log.trajectory else None,
     )
