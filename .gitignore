@@ -60,3 +60,8 @@ tmp/
 # Local database / misc
 *.sqlite
 *.sqlite3
+
+# Mail server runtime data (bind-mounted volumes)
+mailserver/data/
+mailserver/state/
+mailserver/logs/

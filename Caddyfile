@@ -1,3 +1,7 @@
+mail.chemtrail-tracker.com {
+    respond "Mail server" 200
+}
+
 {$DOMAIN} {
     encode gzip
 
