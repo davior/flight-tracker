@@ -8,6 +8,87 @@ Flight Logger is a full-stack app for viewing nearby aircraft, logging sightings
 - Backend: FastAPI, SQLAlchemy, MariaDB
 - Dev orchestration: Docker Compose
 
+## Deploy to Production
+
+The production stack runs behind Caddy (automatic HTTPS) with a self-hosted mail server for `accounts@chemtrail-tracker.com`.
+
+### 1. Provision a server
+
+On a fresh Ubuntu/Debian VPS, install Docker:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/davior/flight-tracker/main/scripts/setup-server.sh | sudo bash
+```
+
+### 2. Set DNS A records (before deploying)
+
+Caddy needs these to resolve before it can issue TLS certificates:
+
+| Record | Name | Value |
+|--------|------|-------|
+| A | `chemtrail-tracker.com` | your server's public IP |
+| A | `mail.chemtrail-tracker.com` | your server's public IP |
+
+### 3. Clone the repo and create `.env`
+
+```bash
+git clone https://github.com/davior/flight-tracker.git /opt/flight-tracker
+cd /opt/flight-tracker
+cp .env.production.example .env
+nano .env
+```
+
+Required values to fill in:
+
+| Variable | Notes |
+|----------|-------|
+| `DOMAIN` | your domain name |
+| `MYSQL_ROOT_PASSWORD` | strong random password |
+| `MYSQL_PASSWORD` | strong random password |
+| `JWT_SECRET_KEY` | `python3 -c "import secrets; print(secrets.token_hex(32))"` |
+| `LIVE_FLIGHT_PROVIDER` + credentials | `opensky` or `adsbx` |
+| `SMTP_PASSWORD` | password you will set for the mail account in step 5 |
+
+### 4. Deploy
+
+```bash
+./scripts/deploy.sh
+```
+
+This builds containers, starts all services (including the mail server), and runs database migrations.
+
+### 5. Create the mail account (one-time)
+
+After the mailserver container is healthy (~60s on first start):
+
+```bash
+./scripts/setup-mailserver.sh
+```
+
+This creates `accounts@chemtrail-tracker.com` and generates DKIM keys. The script prints the DKIM public key you need for the next step.
+
+### 6. Add remaining DNS records
+
+Using the DKIM key printed in step 5, add these records at your DNS registrar:
+
+| Record | Name | Value |
+|--------|------|-------|
+| MX | `chemtrail-tracker.com` | `mail.chemtrail-tracker.com` (priority 10) |
+| TXT (SPF) | `chemtrail-tracker.com` | `v=spf1 mx ~all` |
+| TXT (DKIM) | `mail._domainkey.chemtrail-tracker.com` | value from setup script |
+| TXT (DMARC) | `_dmarc.chemtrail-tracker.com` | `v=DMARC1; p=quarantine; rua=mailto:accounts@chemtrail-tracker.com` |
+| PTR | your server IP | `mail.chemtrail-tracker.com` (set in VPS control panel) |
+
+See `DNS_RECORDS.md` for the full record formats and verification commands.
+
+### Subsequent deploys
+
+```bash
+cd /opt/flight-tracker && ./scripts/deploy.sh
+```
+
+---
+
 ## Run In Debug
 
 The easiest debug workflow is Docker Compose. It starts:
