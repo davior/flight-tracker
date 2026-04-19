@@ -17,26 +17,20 @@ Environment variables:
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
 
+from app.config import _build_database_url
+
 
 def get_alembic_config() -> Config:
     """Get Alembic configuration."""
     alembic_cfg_path = Path(__file__).resolve().parent / "alembic.ini"
     cfg = Config(str(alembic_cfg_path))
-
-    # Ensure DATABASE_URL is set
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        database_url = "mysql+mysqlconnector://flightuser:flightpass@127.0.0.1:3306/flightlogs"
-        print(f"Warning: DATABASE_URL not set, using default: {database_url}")
-
-    cfg.set_main_option("sqlalchemy.url", database_url)
+    cfg.set_main_option("sqlalchemy.url", _build_database_url())
     return cfg
 
 
