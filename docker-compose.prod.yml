@@ -21,7 +21,7 @@ services:
     restart: always
     env_file: .env
     environment:
-      DATABASE_URL: mysql+mysqlconnector://flightuser:${MYSQL_PASSWORD}@db:3306/flightlogs
+      DB_HOST: db
     volumes:
       - uploads_data:/app/uploads
     depends_on:

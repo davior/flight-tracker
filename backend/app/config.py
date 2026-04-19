@@ -4,9 +4,27 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import quote_plus
 
 
 DEFAULT_DATABASE_URL = "mysql+mysqlconnector://flightuser:flightpass@db:3306/flightlogs"
+
+
+def _build_database_url() -> str:
+    # If DATABASE_URL is set directly (e.g. dev docker-compose), use it as-is.
+    url = os.getenv("DATABASE_URL")
+    if url:
+        return url
+    # Otherwise build from individual vars, URL-encoding the password so special
+    # characters like '@' and '$' don't corrupt the connection string.
+    password = quote_plus(os.getenv("MYSQL_PASSWORD", "flightpass"))
+    user = os.getenv("DB_USER", "flightuser")
+    host = os.getenv("DB_HOST", "db")
+    port = os.getenv("DB_PORT", "3306")
+    name = os.getenv("DB_NAME", "flightlogs")
+    return f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{name}"
+
+
 DEFAULT_ADSBX_DB_URL = "https://downloads.adsbexchange.com/downloads/basic-ac-db.json.gz"
 DEFAULT_ADSBX_API_BASE_URL = "https://adsbexchange.com/api/aircraft"
 
@@ -57,7 +75,7 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         return cls(
-            database_url=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
+            database_url=_build_database_url(),
             upload_dir=Path(os.getenv("UPLOAD_DIR", _default_upload_dir())),
             runtime_dir=Path(os.getenv("RUNTIME_DIR", _default_runtime_dir())),
             db_startup_max_attempts=int(os.getenv("DB_STARTUP_MAX_ATTEMPTS", "30")),
