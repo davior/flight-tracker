@@ -30,7 +30,7 @@ def get_alembic_config() -> Config:
     """Get Alembic configuration."""
     alembic_cfg_path = Path(__file__).resolve().parent / "alembic.ini"
     cfg = Config(str(alembic_cfg_path))
-    cfg.set_main_option("sqlalchemy.url", _build_database_url())
+    cfg.set_main_option("sqlalchemy.url", _build_database_url().replace("%", "%%"))
     return cfg
 
 
