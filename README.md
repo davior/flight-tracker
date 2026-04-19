@@ -87,6 +87,23 @@ See `DNS_RECORDS.md` for the full record formats and verification commands.
 cd /opt/flight-tracker && ./scripts/deploy.sh
 ```
 
+### Fresh production reset
+
+If you want to wipe the production stack and all persisted app data before redeploying:
+
+```bash
+cd /opt/flight-tracker
+./scripts/reset-production.sh
+```
+
+Useful flags:
+
+- `--prune` also runs `docker system prune -af` after project images are removed
+- `--setup-mail` re-runs `./scripts/setup-mailserver.sh` after the fresh deploy
+- `--yes` skips the destructive-action confirmation prompt
+
+This removes the production containers, named volumes, uploaded files, Caddy state, and mail data under `mailserver/`, then calls `./scripts/deploy.sh`.
+
 ---
 
 ## Run In Debug
