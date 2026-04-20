@@ -31,10 +31,9 @@ if config.config_file_name is not None:
 # Set the metadata for autogenerate support
 target_metadata = Base.metadata
 
-# Get database URL from environment variable or config
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+# Get database URL — prefer DATABASE_URL, fall back to building from individual vars
+from app.config import _build_database_url
+config.set_main_option("sqlalchemy.url", _build_database_url().replace("%", "%%"))
 
 
 def run_migrations_offline() -> None:

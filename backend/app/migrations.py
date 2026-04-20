@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from alembic import command
@@ -29,10 +28,8 @@ def run_migrations(engine: Engine | None = None) -> None:
     alembic_cfg_path = Path(__file__).resolve().parents[1] / "alembic.ini"
     alembic_cfg = Config(str(alembic_cfg_path))
 
-    # Set database URL from environment if available
-    database_url = os.getenv("DATABASE_URL")
-    if database_url:
-        alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+    from app.config import _build_database_url
+    alembic_cfg.set_main_option("sqlalchemy.url", _build_database_url().replace("%", "%%"))
 
     command.upgrade(alembic_cfg, "head")
 
