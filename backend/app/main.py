@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.logging_config import setup_logging
 from app.api.auth import router as auth_router
 from app.api.flights import router as flights_router
 from app.api.logs import photo_router, router as logs_router
@@ -20,6 +21,12 @@ from app.services.live_flight_provider_factory import create_live_flight_provide
 
 def create_app(settings_override: Settings | None = None) -> FastAPI:
     settings = settings_override or get_settings()
+    setup_logging(
+        level=settings.log_level,
+        log_file=settings.log_file,
+        max_bytes=settings.log_max_bytes,
+        backup_count=settings.log_backup_count,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
