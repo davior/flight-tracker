@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import sys
+import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -42,14 +44,19 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         app.state.enrichment_queue = AircraftEnrichmentQueue(session_maker, app.state.enrichment_service)
         app.state.image_storage = ImageStorageService(settings.upload_dir)
 
-        await wait_for_database(
-            engine,
-            max_attempts=settings.db_startup_max_attempts,
-            retry_delay_seconds=settings.db_startup_retry_delay_seconds,
-        )
+        try:
+            await wait_for_database(
+                engine,
+                max_attempts=settings.db_startup_max_attempts,
+                retry_delay_seconds=settings.db_startup_retry_delay_seconds,
+            )
 
-        # Run database migrations (or create_all for in-memory test databases)
-        run_migrations(engine)
+            # Run database migrations (or create_all for in-memory test databases)
+            run_migrations(engine)
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.flush()
+            raise
 
         session = session_maker()
         try:
