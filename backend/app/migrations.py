@@ -31,7 +31,14 @@ def run_migrations(engine: Engine | None = None) -> None:
     from app.config import _build_database_url
     alembic_cfg.set_main_option("sqlalchemy.url", _build_database_url().replace("%", "%%"))
 
-    command.upgrade(alembic_cfg, "head")
+    # Pass the existing engine connection so env.py doesn't create a second
+    # engine (which can hang with some drivers / MariaDB versions).
+    if engine is not None:
+        with engine.connect() as connection:
+            alembic_cfg.attributes["connection"] = connection
+            command.upgrade(alembic_cfg, "head")
+    else:
+        command.upgrade(alembic_cfg, "head")
 
 
 def create_migration(message: str, autogenerate: bool = True) -> None:
