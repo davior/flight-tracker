@@ -42,8 +42,21 @@ echo "==> Generating DKIM keys for ${DOMAIN}..."
 docker compose -f docker-compose.prod.yml exec -T mailserver setup config dkim domain "${DOMAIN}"
 
 echo ""
-echo "Account created. DKIM public key (add as DNS TXT record):"
+echo "Account created."
 echo ""
-cat "${REPO_DIR}/mailserver/config/opendkim/keys/${DOMAIN}/mail.txt"
+DKIM_TXT="${REPO_DIR}/mailserver/config/opendkim/keys/${DOMAIN}/mail.txt"
+DKIM_KEY="${REPO_DIR}/mailserver/config/opendkim/keys/${DOMAIN}/mail.private"
+if [ -f "${DKIM_TXT}" ]; then
+    echo "DKIM public key (add as DNS TXT record for mail._domainkey.${DOMAIN}):"
+    echo ""
+    cat "${DKIM_TXT}"
+elif [ -f "${DKIM_KEY}" ]; then
+    echo "DKIM public key (add as DNS TXT record for mail._domainkey.${DOMAIN}):"
+    echo ""
+    echo "v=DKIM1; k=rsa; p=$(openssl rsa -in "${DKIM_KEY}" -pubout 2>/dev/null | grep -v "^---" | tr -d '\n')"
+else
+    echo "WARNING: DKIM key files not found at ${REPO_DIR}/mailserver/config/opendkim/"
+    echo "Run: docker compose -f docker-compose.prod.yml exec mailserver setup config dkim domain ${DOMAIN}"
+fi
 echo ""
 echo "See DNS_RECORDS.md for all required DNS records."
