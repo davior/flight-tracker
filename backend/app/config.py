@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 
-DEFAULT_DATABASE_URL = "mariadb+mariadbconnector://flightuser:flightpass@db:3306/flightlogs"
+DEFAULT_DATABASE_URL = "mysql+pymysql://flightuser:flightpass@db:3306/flightlogs"
 
 
 def _build_database_url() -> str:
@@ -22,7 +22,7 @@ def _build_database_url() -> str:
     host = os.getenv("DB_HOST", "db")
     port = os.getenv("DB_PORT", "3306")
     name = os.getenv("DB_NAME", "flightlogs")
-    return f"mariadb+mariadbconnector://{user}:{password}@{host}:{port}/{name}"
+    return f"mysql+pymysql://{user}:{password}@{host}:{port}/{name}"
 
 
 DEFAULT_ADSBX_DB_URL = "https://downloads.adsbexchange.com/downloads/basic-ac-db.json.gz"

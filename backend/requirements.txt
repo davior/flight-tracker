@@ -2,7 +2,7 @@ fastapi
 uvicorn
 sqlalchemy
 alembic
-mariadb
+pymysql
 pillow
 requests
 python-multipart
