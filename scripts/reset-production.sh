@@ -90,7 +90,8 @@ echo "==> Removing bind-mounted mail state..."
 rm -rf \
     "${REPO_DIR}/mailserver/data" \
     "${REPO_DIR}/mailserver/state" \
-    "${REPO_DIR}/mailserver/config" \
+    "${REPO_DIR}/mailserver/config/postfix-accounts.cf" \
+    "${REPO_DIR}/mailserver/config/opendkim" \
     "${REPO_DIR}/mailserver/logs"
 
 echo "==> Removing project images..."
