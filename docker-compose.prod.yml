@@ -63,7 +63,7 @@ services:
       - ./mailserver/state:/var/mail-state
       - ./mailserver/config:/tmp/docker-mailserver
       - ./mailserver/logs:/var/log/mail
-      - caddy_data:/data/caddy:ro
+      - caddy_data:/data:ro
     environment:
       OVERRIDE_HOSTNAME: mail.chemtrail-tracker.com
       DOMAINNAME: chemtrail-tracker.com
