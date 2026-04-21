@@ -69,12 +69,13 @@ async def _send_email(to_email: str, subject: str, body: str, settings: Settings
     try:
         import aiosmtplib
         from email.mime.text import MIMEText
-        from email.utils import make_msgid
+        from email.utils import formatdate, make_msgid
 
         message = MIMEText(body, "plain")
         message["From"] = settings.smtp_from_email
         message["To"] = to_email
         message["Subject"] = subject
+        message["Date"] = formatdate(localtime=False)
         message["Message-ID"] = make_msgid(domain=settings.smtp_host)
 
         await aiosmtplib.send(
