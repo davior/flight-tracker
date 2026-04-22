@@ -9,14 +9,14 @@ services defined in `docker-compose.prod.yml`.
 | Port / Protocol | Source         | Purpose                                             |
 |-----------------|----------------|-----------------------------------------------------|
 | 22/TCP          | Admin IPs only | SSH — server administration                         |
-| 25/TCP          | Any            | SMTP — receiving inbound email                      |
 | 80/TCP          | Any            | HTTP — Caddy ACME challenge + redirect to HTTPS     |
 | 443/TCP         | Any            | HTTPS — main application (Caddy)                    |
 | 443/UDP         | Any            | HTTP/3 QUIC — modern browser optimization (Caddy)   |
-| 587/TCP         | Any            | SMTP submission with STARTTLS — outbound mail       |
-| 993/TCP         | Any            | IMAPS — secure IMAP for mail clients                |
 
 Deny all other inbound traffic by default.
+
+No mail server runs on this host. Inbound email forwarding is handled by ImprovMX
+(external service) — no ports 25, 587, or 993 need to be open.
 
 - **SSH (22/TCP):** Restrict to known admin IP addresses rather than allowing from any
   source. If your platform supports it, consider moving SSH to a non-standard port.
@@ -33,7 +33,7 @@ Deny all other inbound traffic by default.
 | 443/TCP            | opensky-network.org, auth.opensky-network.org        | OpenSky Network live flight data API       |
 | 443/TCP            | adsbexchange.com, downloads.adsbexchange.com         | ADS-B Exchange live flight data API        |
 | 443/TCP            | accounts.google.com, oauth2.googleapis.com           | Google OAuth (only if Google login is enabled) |
-| 25/TCP or 587/TCP  | SMTP relay host                                      | Outbound email delivery                    |
+| 587/TCP            | smtp-relay.brevo.com (or chosen relay)               | Outbound email delivery via SMTP relay     |
 | 443/TCP            | ghcr.io, registry-1.docker.io                        | Docker image pulls from container registries |
 | 80/TCP, 443/TCP    | Any                                                  | OS and package updates                     |
 
@@ -59,9 +59,9 @@ sudo ss -ulnp   # UDP (for QUIC)
 
 # From an external machine: confirm public ports are reachable
 curl -I https://chemtrail-tracker.com
-telnet mail.chemtrail-tracker.com 587
 
 # From an external machine: confirm internal ports are NOT reachable (should time out)
 # nc -zv <SERVER_IP> 8000
 # nc -zv <SERVER_IP> 3306
+# nc -zv <SERVER_IP> 25    # should also time out — no mail server on host
 ```
