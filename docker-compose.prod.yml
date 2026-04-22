@@ -48,47 +48,6 @@ services:
     depends_on:
       - backend
 
-  mailserver:
-    image: ghcr.io/docker-mailserver/docker-mailserver:latest
-    container_name: mailserver
-    hostname: mail
-    domainname: chemtrail-tracker.com
-    restart: always
-    ports:
-      - "25:25"
-      - "587:587"
-      - "993:993"
-    volumes:
-      - ./mailserver/data:/var/mail
-      - ./mailserver/state:/var/mail-state
-      - ./mailserver/config:/tmp/docker-mailserver
-      - ./mailserver/logs:/var/log/mail
-      - caddy_data:/data:ro
-    environment:
-      OVERRIDE_HOSTNAME: mail.chemtrail-tracker.com
-      DOMAINNAME: chemtrail-tracker.com
-      ONE_DIR: "1"
-      DMS_DEBUG: "0"
-      ENABLE_SPAMASSASSIN: "0"
-      ENABLE_CLAMAV: "0"
-      ENABLE_FAIL2BAN: "0"
-      PERMIT_DOCKER: "network"
-      SSL_TYPE: manual
-      SSL_CERT_PATH: /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/mail.chemtrail-tracker.com/mail.chemtrail-tracker.com.crt
-      SSL_KEY_PATH: /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/mail.chemtrail-tracker.com/mail.chemtrail-tracker.com.key
-    cap_add:
-      - NET_ADMIN
-      - SYS_PTRACE
-    security_opt:
-      - apparmor:unconfined
-    healthcheck:
-      test: ["CMD-SHELL", "ss -lntp | grep ':587'"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    depends_on:
-      - caddy
 
 volumes:
   db_data:
