@@ -10,7 +10,7 @@ Flight Logger is a full-stack app for viewing nearby aircraft, logging sightings
 
 ## Deploy to Production
 
-The production stack runs behind Caddy (automatic HTTPS) with a self-hosted mail server for `accounts@chemtrail-tracker.com`.
+The production stack runs behind Caddy (automatic HTTPS). Outbound email uses smtp2go; inbound forwarding uses ImprovMX.
 
 ### 1. Provision a server
 
@@ -27,7 +27,7 @@ Caddy needs these to resolve before it can issue TLS certificates:
 | Record | Name | Value |
 |--------|------|-------|
 | A | `chemtrail-tracker.com` | your server's public IP |
-| A | `mail.chemtrail-tracker.com` | your server's public IP |
+| A | `www.chemtrail-tracker.com` | your server's public IP |
 
 ### 3. Clone the repo and create `.env`
 
@@ -47,7 +47,7 @@ Required values to fill in:
 | `MYSQL_PASSWORD` | strong random password |
 | `JWT_SECRET_KEY` | `python3 -c "import secrets; print(secrets.token_hex(32))"` |
 | `LIVE_FLIGHT_PROVIDER` + credentials | `opensky` or `adsbx` |
-| `SMTP_PASSWORD` | password you will set for the mail account in step 5 |
+| `SMTP_PASSWORD` | smtp2go account password (from smtp2go dashboard) |
 
 ### 4. Deploy
 
@@ -55,31 +55,12 @@ Required values to fill in:
 ./scripts/deploy.sh
 ```
 
-This builds containers, starts all services (including the mail server), and runs database migrations.
+This builds containers, starts all services, and runs database migrations.
 
-### 5. Create the mail account (one-time)
+### 5. Configure DNS and email records
 
-After the mailserver container is healthy (~60s on first start):
-
-```bash
-./scripts/setup-mailserver.sh
-```
-
-This creates `accounts@chemtrail-tracker.com` and generates DKIM keys. The script prints the DKIM public key you need for the next step.
-
-### 6. Add remaining DNS records
-
-Using the DKIM key printed in step 5, add these records at your DNS registrar:
-
-| Record | Name | Value |
-|--------|------|-------|
-| MX | `chemtrail-tracker.com` | `mail.chemtrail-tracker.com` (priority 10) |
-| TXT (SPF) | `chemtrail-tracker.com` | `v=spf1 mx ~all` |
-| TXT (DKIM) | `mail._domainkey.chemtrail-tracker.com` | value from setup script |
-| TXT (DMARC) | `_dmarc.chemtrail-tracker.com` | `v=DMARC1; p=quarantine; rua=mailto:accounts@chemtrail-tracker.com` |
-| PTR | your server IP | `mail.chemtrail-tracker.com` (set in VPS control panel) |
-
-See `DNS_RECORDS.md` for the full record formats and verification commands.
+Add the remaining DNS records (MX, SPF, DKIM, DMARC) at your registrar.
+See `DNS_RECORDS.md` for the exact values and setup sequence.
 
 ### Subsequent deploys
 
@@ -99,10 +80,9 @@ cd /opt/flight-tracker
 Useful flags:
 
 - `--prune` also runs `docker system prune -af` after project images are removed
-- `--setup-mail` re-runs `./scripts/setup-mailserver.sh` after the fresh deploy
 - `--yes` skips the destructive-action confirmation prompt
 
-This removes the production containers, named volumes, uploaded files, Caddy state, and mail data under `mailserver/`, then calls `./scripts/deploy.sh`.
+This removes the production containers, named volumes (including uploaded files and Caddy's cached TLS certificates), then calls `./scripts/deploy.sh`. Caddy will re-obtain a TLS certificate from Let's Encrypt on first start — this requires ports 80 and 443 to be reachable and DNS to be pointing at the server.
 
 ---
 

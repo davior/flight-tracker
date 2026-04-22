@@ -33,7 +33,7 @@ No mail server runs on this host. Inbound email forwarding is handled by ImprovM
 | 443/TCP            | opensky-network.org, auth.opensky-network.org        | OpenSky Network live flight data API       |
 | 443/TCP            | adsbexchange.com, downloads.adsbexchange.com         | ADS-B Exchange live flight data API        |
 | 443/TCP            | accounts.google.com, oauth2.googleapis.com           | Google OAuth (only if Google login is enabled) |
-| 587/TCP            | smtp-relay.brevo.com (or chosen relay)               | Outbound email delivery via SMTP relay     |
+| 2525/TCP           | mail-au.smtp2go.com                                  | Outbound email delivery via smtp2go        |
 | 443/TCP            | ghcr.io, registry-1.docker.io                        | Docker image pulls from container registries |
 | 80/TCP, 443/TCP    | Any                                                  | OS and package updates                     |
 
