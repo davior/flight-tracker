@@ -68,6 +68,9 @@ class DataRefreshScheduler:
         self._maybe_seed(SOURCE_OURAIRPORTS, self._airport_interval, self._seeder.seed_airports)
         self._maybe_seed(SOURCE_OPENSKY_ROUTES, self._aircraft_interval, self._seeder.seed_routes)
 
+    # Retry interval for sources that returned a 4xx ("unavailable") on the last attempt.
+    _UNAVAILABLE_RETRY = timedelta(hours=24)
+
     def _maybe_seed(
         self,
         source: str,
@@ -82,7 +85,12 @@ class DataRefreshScheduler:
                 if last_synced.tzinfo is None:
                     last_synced = last_synced.replace(tzinfo=timezone.utc)
                 age = datetime.now(timezone.utc) - last_synced
-                if age < max_age:
+                effective_max_age = (
+                    self._UNAVAILABLE_RETRY
+                    if record.last_sync_status == "unavailable"
+                    else max_age
+                )
+                if age < effective_max_age:
                     return
         finally:
             session.close()

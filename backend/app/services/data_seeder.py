@@ -33,6 +33,13 @@ class DataSeeder:
         self._settings = settings
         self._session_maker = session_maker
         self._http = requests.Session()
+        self._http.headers.update({
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+        })
 
     def close(self) -> None:
         self._http.close()
@@ -99,6 +106,11 @@ class DataSeeder:
         Only populates icao24 + registration; FAA data doesn't include manufacturer/model
         without the ACFTREF cross-reference table. The upsert preserves existing richer data.
         """
+        if not self._settings.faa_aircraft_zip_url:
+            logger.info("FAA aircraft URL not configured, skipping")
+            self._mark_sync(SOURCE_FAA_AIRCRAFT, "unavailable", None, "URL not configured")
+            return 0
+
         logger.info("Starting FAA aircraft seed from %s", self._settings.faa_aircraft_zip_url)
         zip_path = self._settings.faa_aircraft_zip_path
         self._settings.ensure_directories()
@@ -109,6 +121,16 @@ class DataSeeder:
             logger.info("seed_faa_aircraft complete: %d rows", total)
             self._mark_sync(SOURCE_FAA_AIRCRAFT, "ok", total, None)
             return total
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code < 500:
+                msg = str(exc)
+                logger.warning("seed_faa_aircraft: source unavailable (%s)", msg)
+                self._mark_sync(SOURCE_FAA_AIRCRAFT, "unavailable", None, msg)
+                return 0
+            msg = str(exc)
+            logger.exception("seed_faa_aircraft failed")
+            self._mark_sync(SOURCE_FAA_AIRCRAFT, "error", None, msg)
+            raise
         except Exception as exc:
             msg = str(exc)
             logger.exception("seed_faa_aircraft failed")
@@ -173,7 +195,16 @@ class DataSeeder:
             raise
 
     def seed_routes(self) -> int:
-        """Stream OpenSky route database CSV and upsert into flight_routes table."""
+        """Stream a route database CSV (callsign, adep, ades) and upsert into flight_routes.
+
+        The OpenSky route database is no longer publicly available. Set OPENSKY_ROUTES_URL
+        to point to an alternative CSV source with callsign/adep/ades columns.
+        """
+        if not self._settings.opensky_routes_url:
+            logger.info("Route database URL not configured (OPENSKY_ROUTES_URL), skipping")
+            self._mark_sync(SOURCE_OPENSKY_ROUTES, "unavailable", None, "URL not configured")
+            return 0
+
         logger.info("Starting route seed from %s", self._settings.opensky_routes_url)
         total = 0
         batch: list[dict] = []
@@ -206,6 +237,20 @@ class DataSeeder:
             logger.info("seed_routes complete: %d rows", total)
             self._mark_sync(SOURCE_OPENSKY_ROUTES, "ok", total, None)
             return total
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code < 500:
+                msg = str(exc)
+                logger.warning(
+                    "seed_routes: source unavailable (%s). "
+                    "Set OPENSKY_ROUTES_URL to a CSV with callsign/adep/ades columns.",
+                    msg,
+                )
+                self._mark_sync(SOURCE_OPENSKY_ROUTES, "unavailable", None, msg)
+                return 0
+            msg = str(exc)
+            logger.exception("seed_routes failed")
+            self._mark_sync(SOURCE_OPENSKY_ROUTES, "error", None, msg)
+            raise
         except Exception as exc:
             msg = str(exc)
             logger.exception("seed_routes failed")
