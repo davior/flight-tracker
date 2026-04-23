@@ -268,6 +268,31 @@ class GoogleAuthRequest(BaseModel):
     id_token: str
 
 
+class AirportResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    ident: str
+    type: str | None = None
+    name: str | None = None
+    latitude_deg: float | None = None
+    longitude_deg: float | None = None
+    elevation_ft: int | None = None
+    continent: str | None = None
+    iso_country: str | None = None
+    municipality: str | None = None
+    iata_code: str | None = None
+    last_updated: datetime
+
+
+class DataSyncStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    source: str
+    last_synced_at: datetime | None = None
+    last_sync_status: str | None = None
+    row_count: int | None = None
+
+
 class PatchLogRequest(BaseModel):
     note: str | None = None
 

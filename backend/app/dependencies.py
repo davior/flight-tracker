@@ -13,6 +13,10 @@ from app.services.image_storage import ImageStorageService
 from app.services.live_flight_provider import LiveFlightProvider
 
 
+def get_data_seeder(request: Request):
+    return request.app.state.data_seeder
+
+
 def get_app_settings(request: Request) -> Settings:
     return request.app.state.settings
 

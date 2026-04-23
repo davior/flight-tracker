@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -114,3 +114,42 @@ class AircraftCategory(Base):
     code: Mapped[str] = mapped_column(String(32), primary_key=True)
     label: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str | None] = mapped_column(String(255))
+
+
+class Airport(Base):
+    __tablename__ = "airports"
+
+    ident: Mapped[str] = mapped_column(String(16), primary_key=True)
+    type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    latitude_deg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude_deg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    elevation_ft: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    continent: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    iso_country: Mapped[str | None] = mapped_column(String(4), nullable=True, index=True)
+    municipality: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    iata_code: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
+
+
+class FlightRoute(Base):
+    __tablename__ = "flight_routes"
+
+    callsign: Mapped[str] = mapped_column(String(16), primary_key=True)
+    departure_icao: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    arrival_icao: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
+
+
+class DataSyncLog(Base):
+    __tablename__ = "data_sync_log"
+
+    source: Mapped[str] = mapped_column(String(64), primary_key=True)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_sync_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    last_sync_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
