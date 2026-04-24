@@ -69,6 +69,15 @@ class DataSeeder:
                 type_code = raw_type.upper() or None
                 raw_category = row.get("categoryDescription", "").strip() or None
                 category = normalize_aircraft_category_code(raw_category)
+                operator = row.get("operator", "").strip() or None
+                operator_icao = row.get("operatoricao", "").strip().upper() or None
+                operator_iata = row.get("operatoriata", "").strip().upper() or None
+                operator_callsign = row.get("operatorcallsign", "").strip() or None
+                owner = row.get("owner", "").strip() or None
+                serial_number = row.get("serialnumber", "").strip() or None
+                year_built = row.get("built", "").strip()[:4] or None
+                engines = row.get("engines", "").strip() or None
+                icao_aircraft_type = row.get("icaoaircrafttype", "").strip().upper() or None
 
                 now = _utcnow()
                 batch.append({
@@ -78,6 +87,15 @@ class DataSeeder:
                     "manufacturer": manufacturer,
                     "model": model,
                     "category": category,
+                    "operator": operator,
+                    "operator_icao": operator_icao,
+                    "operator_iata": operator_iata,
+                    "operator_callsign": operator_callsign,
+                    "owner": owner,
+                    "serial_number": serial_number,
+                    "year_built": year_built,
+                    "engines": engines,
+                    "icao_aircraft_type": icao_aircraft_type,
                     "first_seen": now,
                     "last_updated": now,
                 })
@@ -477,6 +495,15 @@ class DataSeeder:
                     manufacturer=stmt.inserted.manufacturer,
                     model=stmt.inserted.model,
                     category=stmt.inserted.category,
+                    operator=stmt.inserted.operator,
+                    operator_icao=stmt.inserted.operator_icao,
+                    operator_iata=stmt.inserted.operator_iata,
+                    operator_callsign=stmt.inserted.operator_callsign,
+                    owner=stmt.inserted.owner,
+                    serial_number=stmt.inserted.serial_number,
+                    year_built=stmt.inserted.year_built,
+                    engines=stmt.inserted.engines,
+                    icao_aircraft_type=stmt.inserted.icao_aircraft_type,
                     last_updated=stmt.inserted.last_updated,
                 )
                 session.execute(stmt)
@@ -491,6 +518,15 @@ class DataSeeder:
                         existing.manufacturer = row.get("manufacturer") or existing.manufacturer
                         existing.model = row.get("model") or existing.model
                         existing.category = row.get("category") or existing.category
+                        existing.operator = row.get("operator") or existing.operator
+                        existing.operator_icao = row.get("operator_icao") or existing.operator_icao
+                        existing.operator_iata = row.get("operator_iata") or existing.operator_iata
+                        existing.operator_callsign = row.get("operator_callsign") or existing.operator_callsign
+                        existing.owner = row.get("owner") or existing.owner
+                        existing.serial_number = row.get("serial_number") or existing.serial_number
+                        existing.year_built = row.get("year_built") or existing.year_built
+                        existing.engines = row.get("engines") or existing.engines
+                        existing.icao_aircraft_type = row.get("icao_aircraft_type") or existing.icao_aircraft_type
                         existing.last_updated = row["last_updated"]
             session.commit()
         except Exception:

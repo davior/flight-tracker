@@ -111,6 +111,14 @@ class NearbyFlightResponse(BaseModel):
     category_label: str | None = None
     category_description: str | None = None
     display_type: str | None = None
+    operator: str | None = None
+    operator_icao: str | None = None
+    operator_callsign: str | None = None
+    owner: str | None = None
+    serial_number: str | None = None
+    year_built: str | None = None
+    engines: str | None = None
+    icao_aircraft_type: str | None = None
 
 
 class LiveFlightCapabilitiesResponse(BaseModel):
@@ -143,6 +151,15 @@ class AircraftRegistryResponse(BaseModel):
     category: str | None = None
     category_label: str | None = None
     category_description: str | None = None
+    operator: str | None = None
+    operator_icao: str | None = None
+    operator_iata: str | None = None
+    operator_callsign: str | None = None
+    owner: str | None = None
+    serial_number: str | None = None
+    year_built: str | None = None
+    engines: str | None = None
+    icao_aircraft_type: str | None = None
     first_seen: datetime
     last_updated: datetime
 
@@ -179,6 +196,14 @@ class FlightLogResponse(BaseModel):
     category_label: str | None = None
     category_description: str | None = None
     display_type: str | None = None
+    operator: str | None = None
+    operator_icao: str | None = None
+    operator_callsign: str | None = None
+    owner: str | None = None
+    serial_number: str | None = None
+    year_built: str | None = None
+    engines: str | None = None
+    icao_aircraft_type: str | None = None
     photos: list[PhotoResponse]
     aircraft_registry: AircraftRegistryResponse | None = None
     trajectory: list[TrajectoryPoint] | None = None
@@ -206,6 +231,14 @@ class LoggedFlightNearbyResponse(BaseModel):
     category_label: str | None = None
     category_description: str | None = None
     display_type: str | None = None
+    operator: str | None = None
+    operator_icao: str | None = None
+    operator_callsign: str | None = None
+    owner: str | None = None
+    serial_number: str | None = None
+    year_built: str | None = None
+    engines: str | None = None
+    icao_aircraft_type: str | None = None
     photos: list[PhotoResponse]
     distance_km: float
     is_owner: bool

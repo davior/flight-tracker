@@ -150,6 +150,14 @@ def get_nearby_flights(
                     category=category_code,
                     category_label=category_label,
                 ),
+                operator=registry.operator if registry else None,
+                operator_icao=registry.operator_icao if registry else None,
+                operator_callsign=registry.operator_callsign if registry else None,
+                owner=registry.owner if registry else None,
+                serial_number=registry.serial_number if registry else None,
+                year_built=registry.year_built if registry else None,
+                engines=registry.engines if registry else None,
+                icao_aircraft_type=registry.icao_aircraft_type if registry else None,
             )
         )
     return enriched

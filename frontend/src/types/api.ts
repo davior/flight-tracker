@@ -63,6 +63,14 @@ export interface ApiLiveFlight {
   category_label: string | null;
   category_description: string | null;
   display_type: string | null;
+  operator: string | null;
+  operator_icao: string | null;
+  operator_callsign: string | null;
+  owner: string | null;
+  serial_number: string | null;
+  year_built: string | null;
+  engines: string | null;
+  icao_aircraft_type: string | null;
 }
 
 export interface ApiLiveFlightCapabilities {
@@ -94,6 +102,14 @@ export interface ApiLoggedFlight {
   category_label: string | null;
   category_description: string | null;
   display_type: string | null;
+  operator: string | null;
+  operator_icao: string | null;
+  operator_callsign: string | null;
+  owner: string | null;
+  serial_number: string | null;
+  year_built: string | null;
+  engines: string | null;
+  icao_aircraft_type: string | null;
   photos: ApiPhoto[];
   distance_km: number;
   is_owner: boolean;
@@ -130,6 +146,14 @@ export interface ApiCreatedLog {
   category_label: string | null;
   category_description: string | null;
   display_type: string | null;
+  operator: string | null;
+  operator_icao: string | null;
+  operator_callsign: string | null;
+  owner: string | null;
+  serial_number: string | null;
+  year_built: string | null;
+  engines: string | null;
+  icao_aircraft_type: string | null;
   photos: ApiPhoto[];
   trajectory: ApiTrajectoryPoint[] | null;
 }

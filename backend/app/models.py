@@ -90,6 +90,15 @@ class AircraftRegistry(Base):
     manufacturer: Mapped[str | None] = mapped_column(String(128))
     model: Mapped[str | None] = mapped_column(String(128))
     category: Mapped[str | None] = mapped_column(String(16))
+    operator: Mapped[str | None] = mapped_column(String(128))
+    operator_icao: Mapped[str | None] = mapped_column(String(8))
+    operator_iata: Mapped[str | None] = mapped_column(String(8))
+    operator_callsign: Mapped[str | None] = mapped_column(String(64))
+    owner: Mapped[str | None] = mapped_column(String(128))
+    serial_number: Mapped[str | None] = mapped_column(String(32))
+    year_built: Mapped[str | None] = mapped_column(String(4))
+    engines: Mapped[str | None] = mapped_column(String(128))
+    icao_aircraft_type: Mapped[str | None] = mapped_column(String(8))
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     last_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

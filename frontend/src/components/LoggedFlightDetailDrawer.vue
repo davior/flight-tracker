@@ -89,11 +89,11 @@ async function confirmDelete() {
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Flight detail</p>
           <h2 class="text-xl font-bold">{{ flight.callsign || flight.icao24.toUpperCase() }}</h2>
           <p class="text-sm text-[var(--muted)]">{{ getAircraftDisplayLabel(flight) || "Aircraft type unavailable" }}</p>
-          <p v-if="formatAircraftCategory(flight)" class="mt-1 text-xs text-[var(--muted)]">
-            Category: {{ formatAircraftCategory(flight) }}
+          <p v-if="flight.operator" class="mt-1 text-xs text-[var(--muted)]">
+            {{ flight.operator }}<span v-if="flight.operator_icao"> ({{ flight.operator_icao }})</span>
           </p>
-          <p v-if="getAircraftCategoryDescription(flight)" class="mt-1 text-xs text-[var(--muted)]">
-            {{ getAircraftCategoryDescription(flight) }}
+          <p v-if="flight.owner && flight.owner !== flight.operator" class="mt-0.5 text-xs text-[var(--muted)]">
+            Owner: {{ flight.owner }}
           </p>
           <p v-if="loggedByLine(flight)" class="mt-2 text-xs text-[var(--muted)]">
             {{ loggedByLine(flight) }}
@@ -116,9 +116,33 @@ async function confirmDelete() {
           <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Flight Time</p>
           <p class="mt-1 font-semibold">{{ formatTimestamp(flight.flight_time) }}</p>
         </div>
-        <div class="rounded-2xl bg-white/70 p-3">
+        <div v-if="flight.icao24" class="rounded-2xl bg-white/70 p-3">
+          <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">ICAO24</p>
+          <p class="mt-1 font-semibold font-mono">{{ flight.icao24.toUpperCase() }}</p>
+        </div>
+        <div v-if="flight.aircraft_registry?.registration" class="rounded-2xl bg-white/70 p-3">
+          <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Registration</p>
+          <p class="mt-1 font-semibold">{{ flight.aircraft_registry.registration }}</p>
+        </div>
+        <div v-if="flight.serial_number" class="rounded-2xl bg-white/70 p-3">
+          <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Serial (MSN)</p>
+          <p class="mt-1 font-semibold">{{ flight.serial_number }}</p>
+        </div>
+        <div v-if="flight.year_built" class="rounded-2xl bg-white/70 p-3">
+          <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Year Built</p>
+          <p class="mt-1 font-semibold">{{ flight.year_built }}</p>
+        </div>
+        <div v-if="flight.engines" class="rounded-2xl bg-white/70 p-3 col-span-2">
+          <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Engines</p>
+          <p class="mt-1 font-semibold">{{ flight.engines }}</p>
+        </div>
+        <div v-if="formatAircraftCategory(flight)" class="rounded-2xl bg-white/70 p-3">
           <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Category</p>
-          <p class="mt-1 font-semibold">{{ formatAircraftCategory(flight) || "n/a" }}</p>
+          <p class="mt-1 font-semibold">{{ formatAircraftCategory(flight) }}</p>
+        </div>
+        <div v-if="flight.icao_aircraft_type" class="rounded-2xl bg-white/70 p-3">
+          <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">ICAO Type</p>
+          <p class="mt-1 font-semibold font-mono">{{ flight.icao_aircraft_type }}</p>
         </div>
       </div>
 
@@ -209,11 +233,11 @@ async function confirmDelete() {
         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Flight detail</p>
         <h2 class="text-xl font-bold">{{ flight.callsign || flight.icao24.toUpperCase() }}</h2>
         <p class="text-sm text-[var(--muted)]">{{ getAircraftDisplayLabel(flight) || "Aircraft type unavailable" }}</p>
-        <p v-if="formatAircraftCategory(flight)" class="mt-1 text-xs text-[var(--muted)]">
-          Category: {{ formatAircraftCategory(flight) }}
+        <p v-if="flight.operator" class="mt-1 text-xs text-[var(--muted)]">
+          {{ flight.operator }}<span v-if="flight.operator_icao"> ({{ flight.operator_icao }})</span>
         </p>
-        <p v-if="getAircraftCategoryDescription(flight)" class="mt-1 text-xs text-[var(--muted)]">
-          {{ getAircraftCategoryDescription(flight) }}
+        <p v-if="flight.owner && flight.owner !== flight.operator" class="mt-0.5 text-xs text-[var(--muted)]">
+          Owner: {{ flight.owner }}
         </p>
         <p v-if="loggedByLine(flight)" class="mt-2 text-xs text-[var(--muted)]">
           {{ loggedByLine(flight) }}
@@ -231,9 +255,33 @@ async function confirmDelete() {
         <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Flight Time</p>
         <p class="mt-1 font-semibold">{{ formatTimestamp(flight.flight_time) }}</p>
       </div>
-      <div class="rounded-2xl bg-white/70 p-3">
+      <div v-if="flight.icao24" class="rounded-2xl bg-white/70 p-3">
+        <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">ICAO24</p>
+        <p class="mt-1 font-semibold font-mono">{{ flight.icao24.toUpperCase() }}</p>
+      </div>
+      <div v-if="flight.aircraft_registry?.registration" class="rounded-2xl bg-white/70 p-3">
+        <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Registration</p>
+        <p class="mt-1 font-semibold">{{ flight.aircraft_registry.registration }}</p>
+      </div>
+      <div v-if="flight.serial_number" class="rounded-2xl bg-white/70 p-3">
+        <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Serial (MSN)</p>
+        <p class="mt-1 font-semibold">{{ flight.serial_number }}</p>
+      </div>
+      <div v-if="flight.year_built" class="rounded-2xl bg-white/70 p-3">
+        <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Year Built</p>
+        <p class="mt-1 font-semibold">{{ flight.year_built }}</p>
+      </div>
+      <div v-if="flight.engines" class="rounded-2xl bg-white/70 p-3 col-span-2">
+        <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Engines</p>
+        <p class="mt-1 font-semibold">{{ flight.engines }}</p>
+      </div>
+      <div v-if="formatAircraftCategory(flight)" class="rounded-2xl bg-white/70 p-3">
         <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">Category</p>
-        <p class="mt-1 font-semibold">{{ formatAircraftCategory(flight) || "n/a" }}</p>
+        <p class="mt-1 font-semibold">{{ formatAircraftCategory(flight) }}</p>
+      </div>
+      <div v-if="flight.icao_aircraft_type" class="rounded-2xl bg-white/70 p-3">
+        <p class="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">ICAO Type</p>
+        <p class="mt-1 font-semibold font-mono">{{ flight.icao_aircraft_type }}</p>
       </div>
     </div>
 
