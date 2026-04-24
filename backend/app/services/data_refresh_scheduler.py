@@ -62,6 +62,7 @@ class DataRefreshScheduler:
     def _seed_stale_sources(self) -> None:
         from app.services.data_seeder import (
             SOURCE_FAA_AIRCRAFT,
+            SOURCE_OPENFLIGHTS_ROUTES,
             SOURCE_OPENSKY_AIRCRAFT,
             SOURCE_OPENSKY_ROUTES,
             SOURCE_OURAIRPORTS,
@@ -70,6 +71,7 @@ class DataRefreshScheduler:
         self._maybe_seed(SOURCE_FAA_AIRCRAFT, self._aircraft_interval, self._seeder.seed_faa_aircraft)
         self._maybe_seed(SOURCE_OURAIRPORTS, self._airport_interval, self._seeder.seed_airports)
         self._maybe_seed(SOURCE_OPENSKY_ROUTES, self._aircraft_interval, self._seeder.seed_routes)
+        self._maybe_seed(SOURCE_OPENFLIGHTS_ROUTES, self._aircraft_interval, self._seeder.seed_openflights_routes)
 
     # Retry interval after any non-ok sync (error, unavailable).
     # Uses a short cycle so transient failures and newly-fixed sources are picked up quickly.

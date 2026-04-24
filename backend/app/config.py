@@ -35,6 +35,9 @@ DEFAULT_OURAIRPORTS_URL = "https://davidmegginson.github.io/ourairports-data/air
 # Set OPENSKY_ROUTES_URL to point to a CSV with callsign/adep/ades columns if you have one.
 DEFAULT_OPENSKY_ROUTES_URL = ""
 
+DEFAULT_OPENFLIGHTS_ROUTES_URL = "https://raw.githubusercontent.com/jpatokal/openflights/master/data/routes.dat"
+DEFAULT_OPENFLIGHTS_AIRLINES_URL = "https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat"
+
 
 def _default_upload_dir() -> Path:
     if Path("/app").exists():
@@ -66,6 +69,8 @@ class Settings:
     faa_aircraft_zip_url: str = DEFAULT_FAA_AIRCRAFT_ZIP_URL
     ourairports_url: str = DEFAULT_OURAIRPORTS_URL
     opensky_routes_url: str = DEFAULT_OPENSKY_ROUTES_URL
+    openflights_routes_url: str = DEFAULT_OPENFLIGHTS_ROUTES_URL
+    openflights_airlines_url: str = DEFAULT_OPENFLIGHTS_AIRLINES_URL
     aircraft_refresh_interval_hours: int = 168   # 7 days
     airport_refresh_interval_hours: int = 720    # 30 days
     data_seed_batch_size: int = 1000
@@ -116,6 +121,8 @@ class Settings:
             faa_aircraft_zip_url=os.getenv("FAA_AIRCRAFT_ZIP_URL", DEFAULT_FAA_AIRCRAFT_ZIP_URL),
             ourairports_url=os.getenv("OURAIRPORTS_URL", DEFAULT_OURAIRPORTS_URL),
             opensky_routes_url=os.getenv("OPENSKY_ROUTES_URL", DEFAULT_OPENSKY_ROUTES_URL),
+            openflights_routes_url=os.getenv("OPENFLIGHTS_ROUTES_URL", DEFAULT_OPENFLIGHTS_ROUTES_URL),
+            openflights_airlines_url=os.getenv("OPENFLIGHTS_AIRLINES_URL", DEFAULT_OPENFLIGHTS_AIRLINES_URL),
             aircraft_refresh_interval_hours=int(os.getenv("AIRCRAFT_REFRESH_INTERVAL_HOURS", "168")),
             airport_refresh_interval_hours=int(os.getenv("AIRPORT_REFRESH_INTERVAL_HOURS", "720")),
             data_seed_batch_size=int(os.getenv("DATA_SEED_BATCH_SIZE", "1000")),

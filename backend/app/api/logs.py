@@ -158,6 +158,20 @@ async def create_log(
         ):
             normalised_callsign = payload.callsign.strip().upper()
             route = db_session.get(FlightRoute, normalised_callsign)
+            if route is None:
+                # Try OpenFlights-style lookup: extract ICAO airline prefix (letters only)
+                # and search for routes stored as "{AIRLINE_ICAO}/{DEP}/{ARR}"
+                import re as _re
+                airline_prefix_match = _re.match(r'^([A-Z]{3})\d', normalised_callsign)
+                if airline_prefix_match:
+                    airline_prefix = airline_prefix_match.group(1)
+                    prefix_routes = db_session.execute(
+                        select(FlightRoute).where(
+                            FlightRoute.callsign.like(f"{airline_prefix}/%")
+                        )
+                    ).scalars().all()
+                    if len(prefix_routes) == 1:
+                        route = prefix_routes[0]
             if route is not None:
                 if "departure_airport" not in payload_data and route.departure_icao:
                     payload_data["departure_airport"] = route.departure_icao

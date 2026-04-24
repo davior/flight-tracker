@@ -22,6 +22,7 @@ SOURCE_OPENSKY_AIRCRAFT = "opensky_aircraft"
 SOURCE_FAA_AIRCRAFT = "faa_aircraft"
 SOURCE_OURAIRPORTS = "ourairports"
 SOURCE_OPENSKY_ROUTES = "opensky_routes"
+SOURCE_OPENFLIGHTS_ROUTES = "openflights_routes"
 
 
 def _utcnow() -> datetime:
@@ -257,6 +258,125 @@ class DataSeeder:
             self._mark_sync(SOURCE_OPENSKY_ROUTES, "error", total or None, msg)
             raise
 
+    def seed_openflights_routes(self) -> int:
+        """Seed airline route data from OpenFlights routes.dat into flight_routes.
+
+        routes.dat maps airline/src-airport/dst-airport using mostly IATA codes.
+        We convert to ICAO using airlines.dat (IATA→ICAO airline) and the airports
+        table (IATA→ICAO airport).  The primary key stored is
+        ``{airline_icao}/{dep_icao}/{arr_icao}`` (e.g. ``BAW/EGLL/KJFK``).
+
+        Auto-fill in create_log then looks up by prefix ``{airline_icao}/%`` when no
+        exact callsign match exists.
+        """
+        if not self._settings.openflights_routes_url:
+            logger.info("OpenFlights routes URL not configured, skipping")
+            self._mark_sync(SOURCE_OPENFLIGHTS_ROUTES, "unavailable", None, "URL not configured")
+            return 0
+
+        logger.info("Starting OpenFlights route seed")
+        total = 0
+        batch: list[dict] = []
+        try:
+            # Build IATA airline code → ICAO airline code mapping from airlines.dat
+            airline_iata_to_icao: dict[str, str] = {}
+            if self._settings.openflights_airlines_url:
+                # airlines.dat columns (no header): airline_id,name,alias,iata,icao,callsign,country,active
+                for row in self._stream_csv_rows_noheader(
+                    self._settings.openflights_airlines_url,
+                    ["airline_id", "name", "alias", "iata", "icao", "callsign", "country", "active"],
+                ):
+                    iata = row.get("iata", "").strip().upper()
+                    icao = row.get("icao", "").strip().upper()
+                    if iata and icao and iata != "\\N" and icao != "\\N":
+                        airline_iata_to_icao[iata] = icao
+
+            # Build IATA airport code → ICAO ident mapping from the airports table
+            airport_iata_to_icao: dict[str, str] = {}
+            session = self._session_maker()
+            try:
+                from app.models import Airport
+                from sqlalchemy import select
+                rows = session.execute(
+                    select(Airport.iata_code, Airport.ident).where(Airport.iata_code.isnot(None))
+                ).all()
+                for iata_code, ident in rows:
+                    if iata_code:
+                        airport_iata_to_icao[iata_code.upper()] = ident.upper()
+            finally:
+                session.close()
+
+            # routes.dat columns (no header): airline,airline_id,src_airport,src_airport_id,
+            #                                  dst_airport,dst_airport_id,codeshare,stops,equipment
+            for row in self._stream_csv_rows_noheader(
+                self._settings.openflights_routes_url,
+                ["airline", "airline_id", "src_airport", "src_airport_id",
+                 "dst_airport", "dst_airport_id", "codeshare", "stops", "equipment"],
+            ):
+                airline_raw = row.get("airline", "").strip().upper()
+                src_raw = row.get("src_airport", "").strip().upper()
+                dst_raw = row.get("dst_airport", "").strip().upper()
+
+                if not airline_raw or not src_raw or not dst_raw:
+                    continue
+                if airline_raw == "\\N" or src_raw == "\\N" or dst_raw == "\\N":
+                    continue
+
+                # Resolve airline to ICAO (3-letter); already ICAO if len==3, else look up
+                if len(airline_raw) == 3:
+                    airline_icao = airline_raw
+                else:
+                    airline_icao = airline_iata_to_icao.get(airline_raw)
+                    if not airline_icao:
+                        continue
+
+                # Resolve airports to ICAO (4-letter); already ICAO if len==4, else look up
+                dep_icao = src_raw if len(src_raw) == 4 else airport_iata_to_icao.get(src_raw)
+                arr_icao = dst_raw if len(dst_raw) == 4 else airport_iata_to_icao.get(dst_raw)
+                if not dep_icao or not arr_icao:
+                    continue
+
+                callsign_key = f"{airline_icao}/{dep_icao}/{arr_icao}"
+                if len(callsign_key) > 16:
+                    continue
+
+                now = _utcnow()
+                batch.append({
+                    "callsign": callsign_key,
+                    "departure_icao": dep_icao,
+                    "arrival_icao": arr_icao,
+                    "last_updated": now,
+                })
+                total += 1
+
+                if len(batch) >= self._settings.data_seed_batch_size:
+                    self._upsert_batch(FlightRoute, batch)
+                    batch = []
+                    if total % 50_000 == 0:
+                        logger.info("seed_openflights_routes: processed %d rows", total)
+
+            if batch:
+                self._upsert_batch(FlightRoute, batch)
+
+            logger.info("seed_openflights_routes complete: %d rows", total)
+            self._mark_sync(SOURCE_OPENFLIGHTS_ROUTES, "ok", total, None)
+            return total
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code < 500:
+                msg = str(exc)
+                logger.warning("seed_openflights_routes: source unavailable (%s)", msg)
+                self._mark_sync(SOURCE_OPENFLIGHTS_ROUTES, "unavailable", None, msg)
+                return 0
+            msg = str(exc)
+            logger.exception("seed_openflights_routes failed")
+            self._mark_sync(SOURCE_OPENFLIGHTS_ROUTES, "error", None, msg)
+            raise
+        except Exception as exc:
+            msg = str(exc)
+            logger.exception("seed_openflights_routes failed")
+            self._mark_sync(SOURCE_OPENFLIGHTS_ROUTES, "error", total or None, msg)
+            raise
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -275,6 +395,18 @@ class DataSeeder:
                     continue
                 if len(parsed) == len(header):
                     yield dict(zip(header, parsed))
+
+    def _stream_csv_rows_noheader(self, url: str, fieldnames: list[str], timeout: int = 60) -> Iterator[dict[str, str]]:
+        """Stream a headerless CSV, mapping columns by position to fieldnames."""
+        with self._http.get(url, stream=True, timeout=timeout) as response:
+            response.raise_for_status()
+            for raw_line in response.iter_lines():
+                line = raw_line.decode("utf-8", errors="replace") if isinstance(raw_line, bytes) else raw_line
+                if not line.strip():
+                    continue
+                parsed = next(csv.reader([line]))
+                if len(parsed) >= len(fieldnames):
+                    yield dict(zip(fieldnames, parsed))
 
     def _download_file(self, url: str, dest: Path, timeout: int = 120) -> None:
         import shutil
