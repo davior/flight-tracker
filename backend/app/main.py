@@ -98,7 +98,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
                 app.state.data_seed_task.cancel()
                 try:
                     await app.state.data_seed_task
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, Exception):
                     pass
             await app.state.data_refresh_scheduler.stop()
             app.state.data_seeder.close()

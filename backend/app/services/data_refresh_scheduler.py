@@ -45,7 +45,10 @@ class DataRefreshScheduler:
 
     async def run_initial_seed(self) -> None:
         """Check all sources at startup; seed those that are absent or stale."""
-        await asyncio.to_thread(self._seed_stale_sources)
+        try:
+            await asyncio.to_thread(self._seed_stale_sources)
+        except Exception:
+            logger.exception("Data initial seed failed")
 
     async def _run(self) -> None:
         """Wake every hour and seed any sources that have become stale."""
@@ -68,8 +71,9 @@ class DataRefreshScheduler:
         self._maybe_seed(SOURCE_OURAIRPORTS, self._airport_interval, self._seeder.seed_airports)
         self._maybe_seed(SOURCE_OPENSKY_ROUTES, self._aircraft_interval, self._seeder.seed_routes)
 
-    # Retry interval for sources that returned a 4xx ("unavailable") on the last attempt.
-    _UNAVAILABLE_RETRY = timedelta(hours=24)
+    # Retry interval after any non-ok sync (error, unavailable).
+    # Uses a short cycle so transient failures and newly-fixed sources are picked up quickly.
+    _FAILED_RETRY = timedelta(hours=24)
 
     def _maybe_seed(
         self,
@@ -77,23 +81,29 @@ class DataRefreshScheduler:
         max_age: timedelta,
         seed_fn: Callable[[], int],
     ) -> None:
-        session = self._session_maker()
         try:
-            record = session.get(DataSyncLog, source)
-            if record is not None and record.last_synced_at is not None:
-                last_synced = record.last_synced_at
-                if last_synced.tzinfo is None:
-                    last_synced = last_synced.replace(tzinfo=timezone.utc)
-                age = datetime.now(timezone.utc) - last_synced
-                effective_max_age = (
-                    self._UNAVAILABLE_RETRY
-                    if record.last_sync_status == "unavailable"
-                    else max_age
-                )
-                if age < effective_max_age:
-                    return
-        finally:
-            session.close()
+            session = self._session_maker()
+            try:
+                record = session.get(DataSyncLog, source)
+                if record is not None and record.last_synced_at is not None:
+                    last_synced = record.last_synced_at
+                    if last_synced.tzinfo is None:
+                        last_synced = last_synced.replace(tzinfo=timezone.utc)
+                    age = datetime.now(timezone.utc) - last_synced
+                    # Only honour the full max_age after a successful sync.
+                    # Errors and unavailable sources retry every 24h so transient
+                    # failures and newly-available sources are picked up quickly.
+                    effective_max_age = (
+                        max_age
+                        if record.last_sync_status == "ok"
+                        else self._FAILED_RETRY
+                    )
+                    if age < effective_max_age:
+                        return
+            finally:
+                session.close()
+        except Exception:
+            logger.exception("Error checking sync log for source %s, seeding anyway", source)
 
         logger.info("Seeding data source: %s", source)
         try:
