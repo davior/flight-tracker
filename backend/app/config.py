@@ -28,7 +28,7 @@ def _build_database_url() -> str:
 DEFAULT_ADSBX_DB_URL = "https://downloads.adsbexchange.com/downloads/basic-ac-db.json.gz"
 DEFAULT_ADSBX_API_BASE_URL = "https://adsbexchange.com/api/aircraft"
 
-DEFAULT_OPENSKY_AIRCRAFT_DB_URL = "https://opensky-network.org/datasets/metadata/aircraftDatabase.csv"
+DEFAULT_OPENSKY_AIRCRAFT_DB_URL = "https://s3.opensky-network.org/data-samples/metadata/aircraftDatabase.csv"
 DEFAULT_FAA_AIRCRAFT_ZIP_URL = "https://registry.faa.gov/database/ReleasableAircraft.zip"
 DEFAULT_OURAIRPORTS_URL = "https://davidmegginson.github.io/ourairports-data/airports.csv"
 # The OpenSky route database (callsign→adep/ades) is no longer publicly available.
