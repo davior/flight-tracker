@@ -71,9 +71,17 @@ class DataRefreshScheduler:
                 logger.exception("Unexpected error in data refresh scheduler")
 
     def _aircraft_registry_is_empty(self) -> bool:
+        """Return True if the registry has no rows with real enrichment data.
+
+        Stub rows (icao24 only, inserted by the enrichment queue for unknown aircraft)
+        don't count — we still need the bulk seed to run.
+        """
         session = self._session_maker()
         try:
-            count = session.execute(select(func.count()).select_from(AircraftRegistry)).scalar()
+            count = session.execute(
+                select(func.count()).select_from(AircraftRegistry)
+                .where(AircraftRegistry.manufacturer.isnot(None))
+            ).scalar()
             return (count or 0) == 0
         except Exception:
             logger.exception("Could not check aircraft_registry row count")
