@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker, selectinload
 from app.config import Settings
 from app.db import get_db
 from app.dependencies import get_app_settings, get_enrichment_service, get_image_storage_service, get_live_flight_provider, get_optional_current_user, get_current_user, get_session_maker
-from app.models import AircraftRegistry, FlightLog, FlightLogPhoto, User
+from app.models import AircraftRegistry, FlightLog, FlightLogPhoto, FlightRoute, User
 from app.serializers import resolve_log_coordinates, serialize_flight_log, serialize_nearby_log
 from app.schemas import (
     FlightLogCreate,
@@ -152,6 +152,31 @@ async def create_log(
             fallback_timestamp = utcnow()
             payload_data["created_at"] = fallback_timestamp
             payload_data["flight_time"] = fallback_timestamp
+
+        if payload.callsign and (
+            "departure_airport" not in payload_data or "arrival_airport" not in payload_data
+        ):
+            normalised_callsign = payload.callsign.strip().upper()
+            route = db_session.get(FlightRoute, normalised_callsign)
+            if route is None:
+                # Try OpenFlights-style lookup: extract ICAO airline prefix (letters only)
+                # and search for routes stored as "{AIRLINE_ICAO}/{DEP}/{ARR}"
+                import re as _re
+                airline_prefix_match = _re.match(r'^([A-Z]{3})\d', normalised_callsign)
+                if airline_prefix_match:
+                    airline_prefix = airline_prefix_match.group(1)
+                    prefix_routes = db_session.execute(
+                        select(FlightRoute).where(
+                            FlightRoute.callsign.like(f"{airline_prefix}/%")
+                        )
+                    ).scalars().all()
+                    if len(prefix_routes) == 1:
+                        route = prefix_routes[0]
+            if route is not None:
+                if "departure_airport" not in payload_data and route.departure_icao:
+                    payload_data["departure_airport"] = route.departure_icao
+                if "arrival_airport" not in payload_data and route.arrival_icao:
+                    payload_data["arrival_airport"] = route.arrival_icao
 
         payload_data["owner_id"] = current_user.id
         flight_log = FlightLog(**payload_data)

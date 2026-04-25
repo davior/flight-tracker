@@ -18,11 +18,14 @@ defineEmits<{
       <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Live Flight</p>
       <h3 class="text-base font-bold">{{ flight.callsign || flight.icao24.toUpperCase() }}</h3>
       <p class="text-[var(--muted)]">{{ getAircraftDisplayLabel(flight) || "Aircraft type unavailable" }}</p>
+      <p v-if="flight.operator" class="mt-1 text-xs text-[var(--muted)]">
+        {{ flight.operator }}<span v-if="flight.operator_icao"> ({{ flight.operator_icao }})</span>
+      </p>
+      <p v-if="flight.owner && flight.owner !== flight.operator" class="mt-0.5 text-xs text-[var(--muted)]">
+        Owner: {{ flight.owner }}
+      </p>
       <p v-if="formatAircraftCategory(flight)" class="mt-1 text-xs text-[var(--muted)]">
         Category: {{ formatAircraftCategory(flight) }}
-      </p>
-      <p v-if="getAircraftCategoryDescription(flight)" class="mt-1 text-xs text-[var(--muted)]">
-        {{ getAircraftCategoryDescription(flight) }}
       </p>
     </div>
     <dl class="grid grid-cols-2 gap-2 text-xs text-[var(--muted)]">

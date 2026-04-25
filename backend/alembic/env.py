@@ -17,6 +17,9 @@ from app.models import (
     AircraftType,
     AircraftCategory,
     User,
+    Airport,
+    FlightRoute,
+    DataSyncLog,
 )
 
 # this is the Alembic Config object, which provides

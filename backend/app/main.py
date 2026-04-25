@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.logging_config import setup_logging
+from app.api.airports import router as airports_router
 from app.api.auth import router as auth_router
 from app.api.flights import router as flights_router
 from app.api.logs import photo_router, router as logs_router
@@ -17,6 +18,9 @@ from app.migrations import run_migrations
 from app.services.aircraft_enrichment import AircraftEnrichmentService
 from app.services.aircraft_categories import seed_aircraft_categories
 from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
+from app.services.data_seeder import DataSeeder
+from app.services.data_refresh_scheduler import DataRefreshScheduler
+from app.services.data_sync import DataSyncService
 from app.services.image_storage import ImageStorageService
 from app.services.live_flight_provider_factory import create_live_flight_provider
 
@@ -43,6 +47,11 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         app.state.enrichment_service = AircraftEnrichmentService(settings)
         app.state.enrichment_queue = AircraftEnrichmentQueue(session_maker, app.state.enrichment_service)
         app.state.image_storage = ImageStorageService(settings.upload_dir)
+        app.state.data_seeder = DataSeeder(settings, session_maker)
+        app.state.data_sync_service = DataSyncService(settings, app.state.data_seeder, session_maker)
+        app.state.data_refresh_scheduler = DataRefreshScheduler(
+            sync_service=app.state.data_sync_service,
+        )
 
         try:
             await wait_for_database(
@@ -71,6 +80,11 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
                 app.state.enrichment_queue.warm_snapshot(),
                 name="aircraft-enrichment-warmup",
             )
+            app.state.data_seed_task = asyncio.create_task(
+                app.state.data_refresh_scheduler.run_initial_seed(),
+                name="data-initial-seed",
+            )
+            app.state.data_refresh_scheduler.start()
             yield
         finally:
             if app.state.enrichment_warmup_task is not None:
@@ -79,6 +93,14 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
                     await app.state.enrichment_warmup_task
                 except asyncio.CancelledError:
                     pass
+            if app.state.data_seed_task is not None:
+                app.state.data_seed_task.cancel()
+                try:
+                    await app.state.data_seed_task
+                except (asyncio.CancelledError, Exception):
+                    pass
+            await app.state.data_refresh_scheduler.stop()
+            app.state.data_seeder.close()
             await app.state.enrichment_queue.stop()
             app.state.live_flight_provider.close()
             app.state.enrichment_service.close()
@@ -86,6 +108,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     application = FastAPI(title="Flight Logger API", lifespan=lifespan)
     application.include_router(auth_router)
+    application.include_router(airports_router)
     application.include_router(flights_router)
     application.include_router(logs_router)
     application.include_router(photo_router)

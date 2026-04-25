@@ -20,6 +20,12 @@ def settings(tmp_path: Path) -> Settings:
         live_flight_provider="opensky",
         opensky_client_id=None,
         opensky_client_secret=None,
+        opensky_aircraft_db_url="",
+        faa_aircraft_zip_url="",
+        ourairports_url="",
+        opensky_routes_url="",
+        openflights_routes_url="",
+        openflights_airlines_url="",
         adsbx_api_key="demo-key",
         jwt_secret_key="test-secret-key",
     )

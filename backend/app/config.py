@@ -28,6 +28,16 @@ def _build_database_url() -> str:
 DEFAULT_ADSBX_DB_URL = "https://downloads.adsbexchange.com/downloads/basic-ac-db.json.gz"
 DEFAULT_ADSBX_API_BASE_URL = "https://adsbexchange.com/api/aircraft"
 
+DEFAULT_OPENSKY_AIRCRAFT_DB_URL = "https://s3.opensky-network.org/data-samples/metadata/aircraftDatabase.csv"
+DEFAULT_FAA_AIRCRAFT_ZIP_URL = "https://registry.faa.gov/database/ReleasableAircraft.zip"
+DEFAULT_OURAIRPORTS_URL = "https://davidmegginson.github.io/ourairports-data/airports.csv"
+# The OpenSky route database (callsign→adep/ades) is no longer publicly available.
+# Set OPENSKY_ROUTES_URL to point to a CSV with callsign/adep/ades columns if you have one.
+DEFAULT_OPENSKY_ROUTES_URL = ""
+
+DEFAULT_OPENFLIGHTS_ROUTES_URL = "https://raw.githubusercontent.com/jpatokal/openflights/master/data/routes.dat"
+DEFAULT_OPENFLIGHTS_AIRLINES_URL = "https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat"
+
 
 def _default_upload_dir() -> Path:
     if Path("/app").exists():
@@ -54,6 +64,19 @@ class Settings:
     adsbx_api_base_url: str = DEFAULT_ADSBX_API_BASE_URL
     adsbx_db_url: str = DEFAULT_ADSBX_DB_URL
     adsbx_snapshot_max_age_hours: int = 24
+    # Data seeding
+    opensky_aircraft_db_url: str = DEFAULT_OPENSKY_AIRCRAFT_DB_URL
+    faa_aircraft_zip_url: str = DEFAULT_FAA_AIRCRAFT_ZIP_URL
+    ourairports_url: str = DEFAULT_OURAIRPORTS_URL
+    opensky_routes_url: str = DEFAULT_OPENSKY_ROUTES_URL
+    openflights_routes_url: str = DEFAULT_OPENFLIGHTS_ROUTES_URL
+    openflights_airlines_url: str = DEFAULT_OPENFLIGHTS_AIRLINES_URL
+    aircraft_refresh_interval_hours: int = 168   # 7 days
+    airport_refresh_interval_hours: int = 720    # 30 days
+    failed_source_retry_hours: int = 1
+    opensky_seed_retry_attempts: int = 3
+    opensky_seed_retry_base_delay_seconds: float = 1.0
+    data_seed_batch_size: int = 1000
     # Auth
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
@@ -77,6 +100,10 @@ class Settings:
     def adsbx_snapshot_path(self) -> Path:
         return self.runtime_dir / "basic-ac-db.json.gz"
 
+    @property
+    def faa_aircraft_zip_path(self) -> Path:
+        return self.runtime_dir / "faa_releasable.zip"
+
     @classmethod
     def from_env(cls) -> "Settings":
         return cls(
@@ -93,6 +120,20 @@ class Settings:
             adsbx_api_base_url=os.getenv("ADSBX_API_BASE_URL", DEFAULT_ADSBX_API_BASE_URL),
             adsbx_db_url=os.getenv("ADSBX_DB_URL", DEFAULT_ADSBX_DB_URL),
             adsbx_snapshot_max_age_hours=int(os.getenv("ADSBX_SNAPSHOT_MAX_AGE_HOURS", "24")),
+            opensky_aircraft_db_url=os.getenv("OPENSKY_AIRCRAFT_DB_URL", DEFAULT_OPENSKY_AIRCRAFT_DB_URL),
+            faa_aircraft_zip_url=os.getenv("FAA_AIRCRAFT_ZIP_URL", DEFAULT_FAA_AIRCRAFT_ZIP_URL),
+            ourairports_url=os.getenv("OURAIRPORTS_URL", DEFAULT_OURAIRPORTS_URL),
+            opensky_routes_url=os.getenv("OPENSKY_ROUTES_URL", DEFAULT_OPENSKY_ROUTES_URL),
+            openflights_routes_url=os.getenv("OPENFLIGHTS_ROUTES_URL", DEFAULT_OPENFLIGHTS_ROUTES_URL),
+            openflights_airlines_url=os.getenv("OPENFLIGHTS_AIRLINES_URL", DEFAULT_OPENFLIGHTS_AIRLINES_URL),
+            aircraft_refresh_interval_hours=int(os.getenv("AIRCRAFT_REFRESH_INTERVAL_HOURS", "168")),
+            airport_refresh_interval_hours=int(os.getenv("AIRPORT_REFRESH_INTERVAL_HOURS", "720")),
+            failed_source_retry_hours=int(os.getenv("FAILED_SOURCE_RETRY_HOURS", "1")),
+            opensky_seed_retry_attempts=int(os.getenv("OPENSKY_SEED_RETRY_ATTEMPTS", "3")),
+            opensky_seed_retry_base_delay_seconds=float(
+                os.getenv("OPENSKY_SEED_RETRY_BASE_DELAY_SECONDS", "1.0")
+            ),
+            data_seed_batch_size=int(os.getenv("DATA_SEED_BATCH_SIZE", "1000")),
             jwt_secret_key=os.getenv("JWT_SECRET_KEY", "change-me-in-production"),
             jwt_algorithm=os.getenv("JWT_ALGORITHM", "HS256"),
             jwt_expiry_days=int(os.getenv("JWT_EXPIRY_DAYS", "30")),

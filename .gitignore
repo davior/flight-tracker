@@ -65,3 +65,6 @@ tmp/
 mailserver/data/
 mailserver/state/
 mailserver/logs/
+
+# Plugins
+.codex
