@@ -73,6 +73,9 @@ class Settings:
     openflights_airlines_url: str = DEFAULT_OPENFLIGHTS_AIRLINES_URL
     aircraft_refresh_interval_hours: int = 168   # 7 days
     airport_refresh_interval_hours: int = 720    # 30 days
+    failed_source_retry_hours: int = 1
+    opensky_seed_retry_attempts: int = 3
+    opensky_seed_retry_base_delay_seconds: float = 1.0
     data_seed_batch_size: int = 1000
     # Auth
     jwt_secret_key: str = "change-me-in-production"
@@ -125,6 +128,11 @@ class Settings:
             openflights_airlines_url=os.getenv("OPENFLIGHTS_AIRLINES_URL", DEFAULT_OPENFLIGHTS_AIRLINES_URL),
             aircraft_refresh_interval_hours=int(os.getenv("AIRCRAFT_REFRESH_INTERVAL_HOURS", "168")),
             airport_refresh_interval_hours=int(os.getenv("AIRPORT_REFRESH_INTERVAL_HOURS", "720")),
+            failed_source_retry_hours=int(os.getenv("FAILED_SOURCE_RETRY_HOURS", "1")),
+            opensky_seed_retry_attempts=int(os.getenv("OPENSKY_SEED_RETRY_ATTEMPTS", "3")),
+            opensky_seed_retry_base_delay_seconds=float(
+                os.getenv("OPENSKY_SEED_RETRY_BASE_DELAY_SECONDS", "1.0")
+            ),
             data_seed_batch_size=int(os.getenv("DATA_SEED_BATCH_SIZE", "1000")),
             jwt_secret_key=os.getenv("JWT_SECRET_KEY", "change-me-in-production"),
             jwt_algorithm=os.getenv("JWT_ALGORITHM", "HS256"),

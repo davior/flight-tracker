@@ -3,12 +3,15 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import socket
+import time
 import zipfile
 from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
+from sqlalchemy.exc import DataError as SQLAlchemyDataError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings
@@ -23,10 +26,37 @@ SOURCE_FAA_AIRCRAFT = "faa_aircraft"
 SOURCE_OURAIRPORTS = "ourairports"
 SOURCE_OPENSKY_ROUTES = "opensky_routes"
 SOURCE_OPENFLIGHTS_ROUTES = "openflights_routes"
+MAX_SYNC_ERROR_LENGTH = 4000
+AIRCRAFT_REGISTRY_MAX_LENGTHS: dict[str, int] = {
+    "icao24": 6,
+    "registration": 32,
+    "type_code": 8,
+    "manufacturer": 128,
+    "model": 128,
+    "category": 16,
+    "operator": 128,
+    "operator_icao": 8,
+    "operator_iata": 8,
+    "operator_callsign": 64,
+    "owner": 128,
+    "serial_number": 32,
+    "year_built": 4,
+    "engines": 128,
+    "icao_aircraft_type": 8,
+}
 
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _iter_exception_chain(exc: BaseException) -> Iterator[BaseException]:
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        yield current
+        current = current.__cause__ or current.__context__
 
 
 class DataSeeder:
@@ -51,73 +81,104 @@ class DataSeeder:
 
     def seed_opensky_aircraft(self) -> int:
         """Stream OpenSky aircraft metadata CSV and upsert into aircraft_registry."""
-        logger.info("Starting OpenSky aircraft seed from %s", self._settings.opensky_aircraft_db_url)
-        total = 0
-        batch: list[dict] = []
-        try:
-            for row in self._stream_csv_rows(self._settings.opensky_aircraft_db_url):
-                raw_icao24 = row.get("icao24", "").strip()
-                try:
-                    icao24 = normalize_icao24(raw_icao24)
-                except ValueError:
+        url = self._settings.opensky_aircraft_db_url
+        if not url:
+            logger.info("OpenSky aircraft URL not configured, skipping")
+            self._mark_sync(SOURCE_OPENSKY_AIRCRAFT, "unavailable", None, "URL not configured")
+            return 0
+        logger.info("Starting OpenSky aircraft seed from %s", url)
+        max_attempts = max(1, self._settings.opensky_seed_retry_attempts)
+        base_delay = max(0.0, self._settings.opensky_seed_retry_base_delay_seconds)
+
+        for attempt in range(1, max_attempts + 1):
+            total = 0
+            batch: list[dict] = []
+            try:
+                for row in self._stream_csv_rows(url):
+                    raw_icao24 = row.get("icao24", "").strip()
+                    try:
+                        icao24 = normalize_icao24(raw_icao24)
+                    except ValueError:
+                        continue
+
+                    registration = row.get("registration", "").strip() or None
+                    manufacturer = row.get("manufacturername", "").strip() or None
+                    model = row.get("model", "").strip() or None
+                    raw_type = row.get("typecode", "").strip()
+                    type_code = raw_type.upper() or None
+                    raw_category = row.get("categoryDescription", "").strip() or None
+                    category = self._normalize_seed_category(raw_category)
+                    operator = row.get("operator", "").strip() or None
+                    operator_icao = row.get("operatoricao", "").strip().upper() or None
+                    operator_iata = row.get("operatoriata", "").strip().upper() or None
+                    operator_callsign = row.get("operatorcallsign", "").strip() or None
+                    owner = row.get("owner", "").strip() or None
+                    serial_number = row.get("serialnumber", "").strip() or None
+                    year_built = row.get("built", "").strip()[:4] or None
+                    engines = row.get("engines", "").strip() or None
+                    icao_aircraft_type = row.get("icaoaircrafttype", "").strip().upper() or None
+
+                    now = _utcnow()
+                    batch.append({
+                        "icao24": self._truncate_string("icao24", icao24),
+                        "registration": self._truncate_string("registration", registration),
+                        "type_code": self._truncate_string("type_code", type_code),
+                        "manufacturer": self._truncate_string("manufacturer", manufacturer),
+                        "model": self._truncate_string("model", model),
+                        "category": self._truncate_string("category", category),
+                        "operator": self._truncate_string("operator", operator),
+                        "operator_icao": self._truncate_string("operator_icao", operator_icao),
+                        "operator_iata": self._truncate_string("operator_iata", operator_iata),
+                        "operator_callsign": self._truncate_string("operator_callsign", operator_callsign),
+                        "owner": self._truncate_string("owner", owner),
+                        "serial_number": self._truncate_string("serial_number", serial_number),
+                        "year_built": self._truncate_string("year_built", year_built),
+                        "engines": self._truncate_string("engines", engines),
+                        "icao_aircraft_type": self._truncate_string("icao_aircraft_type", icao_aircraft_type),
+                        "first_seen": now,
+                        "last_updated": now,
+                    })
+                    total += 1
+
+                    if len(batch) >= self._settings.data_seed_batch_size:
+                        self._upsert_aircraft_batch(batch)
+                        batch = []
+                        if total % 50_000 == 0:
+                            logger.info("seed_opensky_aircraft: processed %d rows", total)
+
+                if batch:
+                    self._upsert_aircraft_batch(batch)
+
+                logger.info("seed_opensky_aircraft complete: %d rows", total)
+                self._mark_sync(SOURCE_OPENSKY_AIRCRAFT, "ok", total, None)
+                return total
+            except Exception as exc:
+                category = self._classify_exception(exc)
+                message = self._format_sync_error(category, url, exc)
+                if self._is_retryable_network_error(exc) and attempt < max_attempts:
+                    logger.warning(
+                        "seed_opensky_aircraft transient failure (%s) on attempt %d/%d for %s: %s",
+                        category,
+                        attempt,
+                        max_attempts,
+                        url,
+                        exc,
+                    )
+                    if base_delay > 0:
+                        time.sleep(base_delay * (2 ** (attempt - 1)))
                     continue
 
-                registration = row.get("registration", "").strip() or None
-                manufacturer = row.get("manufacturername", "").strip() or None
-                model = row.get("model", "").strip() or None
-                raw_type = row.get("typecode", "").strip()
-                type_code = raw_type.upper() or None
-                raw_category = row.get("categoryDescription", "").strip() or None
-                category = normalize_aircraft_category_code(raw_category)
-                operator = row.get("operator", "").strip() or None
-                operator_icao = row.get("operatoricao", "").strip().upper() or None
-                operator_iata = row.get("operatoriata", "").strip().upper() or None
-                operator_callsign = row.get("operatorcallsign", "").strip() or None
-                owner = row.get("owner", "").strip() or None
-                serial_number = row.get("serialnumber", "").strip() or None
-                year_built = row.get("built", "").strip()[:4] or None
-                engines = row.get("engines", "").strip() or None
-                icao_aircraft_type = row.get("icaoaircrafttype", "").strip().upper() or None
-
-                now = _utcnow()
-                batch.append({
-                    "icao24": icao24,
-                    "registration": registration,
-                    "type_code": type_code,
-                    "manufacturer": manufacturer,
-                    "model": model,
-                    "category": category,
-                    "operator": operator,
-                    "operator_icao": operator_icao,
-                    "operator_iata": operator_iata,
-                    "operator_callsign": operator_callsign,
-                    "owner": owner,
-                    "serial_number": serial_number,
-                    "year_built": year_built,
-                    "engines": engines,
-                    "icao_aircraft_type": icao_aircraft_type,
-                    "first_seen": now,
-                    "last_updated": now,
-                })
-                total += 1
-
-                if len(batch) >= self._settings.data_seed_batch_size:
-                    self._upsert_aircraft_batch(batch)
-                    batch = []
-                    if total % 50_000 == 0:
-                        logger.info("seed_opensky_aircraft: processed %d rows", total)
-
-            if batch:
-                self._upsert_aircraft_batch(batch)
-
-            logger.info("seed_opensky_aircraft complete: %d rows", total)
-            self._mark_sync(SOURCE_OPENSKY_AIRCRAFT, "ok", total, None)
-            return total
-        except Exception as exc:
-            msg = str(exc)
-            logger.exception("seed_opensky_aircraft failed")
-            self._mark_sync(SOURCE_OPENSKY_AIRCRAFT, "error", total or None, msg)
-            raise
+                status = self._status_for_exception(exc)
+                logger.exception(
+                    "seed_opensky_aircraft failed (%s) for %s after %d attempt(s)",
+                    category,
+                    url,
+                    attempt,
+                )
+                self._mark_sync(SOURCE_OPENSKY_AIRCRAFT, status, total or None, message)
+                if status == "unavailable":
+                    return 0
+                raise
 
     def seed_faa_aircraft(self) -> int:
         """Download FAA ReleasableAircraft ZIP, extract MASTER.txt, upsert into aircraft_registry.
@@ -164,6 +225,11 @@ class DataSeeder:
 
     def seed_airports(self) -> int:
         """Stream OurAirports airports.csv and upsert into airports table."""
+        if not self._settings.ourairports_url:
+            logger.info("OurAirports URL not configured, skipping")
+            self._mark_sync(SOURCE_OURAIRPORTS, "unavailable", None, "URL not configured")
+            return 0
+
         logger.info("Starting airports seed from %s", self._settings.ourairports_url)
         total = 0
         batch: list[dict] = []
@@ -439,6 +505,55 @@ class DataSeeder:
             if tmp.exists():
                 tmp.unlink(missing_ok=True)
             raise
+
+    def _is_retryable_network_error(self, exc: BaseException) -> bool:
+        if isinstance(exc, requests.Timeout):
+            return True
+        if isinstance(exc, requests.ConnectionError) and not isinstance(exc, requests.HTTPError):
+            return True
+        return any(isinstance(error, socket.gaierror) for error in _iter_exception_chain(exc))
+
+    def _classify_exception(self, exc: BaseException) -> str:
+        if any(isinstance(error, socket.gaierror) for error in _iter_exception_chain(exc)):
+            return "dns_error"
+        if isinstance(exc, requests.Timeout):
+            return "timeout_error"
+        if isinstance(exc, requests.HTTPError):
+            return "http_error"
+        if isinstance(exc, requests.ConnectionError):
+            return "connection_error"
+        return "parse_error"
+
+    def _status_for_exception(self, exc: BaseException) -> str:
+        if isinstance(exc, requests.HTTPError) and exc.response is not None and exc.response.status_code < 500:
+            return "unavailable"
+        return "error"
+
+    def _format_sync_error(self, category: str, url: str, exc: BaseException) -> str:
+        if isinstance(exc, requests.HTTPError) and exc.response is not None:
+            return f"{category}: HTTP {exc.response.status_code} while fetching {url}"
+        if isinstance(exc, SQLAlchemyDataError):
+            detail = str(getattr(exc, "orig", exc))
+        else:
+            detail = str(exc)
+        message = f"{category}: {detail} (url={url})"
+        if len(message) > MAX_SYNC_ERROR_LENGTH:
+            message = f"{message[:MAX_SYNC_ERROR_LENGTH - 3]}..."
+        return message
+
+    def _normalize_seed_category(self, raw_category: str | None) -> str | None:
+        normalized = normalize_aircraft_category_code(raw_category)
+        if normalized is None:
+            return None
+        return normalized if len(normalized) <= 16 else None
+
+    def _truncate_string(self, field: str, value: str | None) -> str | None:
+        if value is None:
+            return None
+        max_length = AIRCRAFT_REGISTRY_MAX_LENGTHS.get(field)
+        if max_length is None or len(value) <= max_length:
+            return value
+        return value[:max_length]
 
     def _import_faa_zip(self, zip_path: Path) -> int:
         total = 0

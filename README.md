@@ -232,6 +232,56 @@ npm run build
 
 This project uses Alembic for database schema migrations. Migrations run automatically when the backend starts.
 
+## Manual Data Sync
+
+The backend seeds reference data automatically at startup, but operators can also trigger a sync manually from the backend container.
+
+### Common Commands
+
+```bash
+# Re-run the OpenSky aircraft import
+docker exec flight-logger-backend-1 python /app/sync_data.py opensky_aircraft
+
+# Show the last known sync status for every source
+docker exec flight-logger-backend-1 python /app/sync_data.py --status
+
+# Run another supported source explicitly
+docker exec flight-logger-backend-1 python /app/sync_data.py faa_aircraft
+```
+
+If you run the CLI from a local virtualenv instead of the container:
+
+```bash
+cd backend
+python sync_data.py opensky_aircraft
+```
+
+### Supported Sources
+
+- `opensky_aircraft`
+- `faa_aircraft`
+- `ourairports`
+- `opensky_routes`
+- `openflights_routes`
+
+### Notes
+
+- `opensky_aircraft` is the main bulk enrichment source for `aircraft_registry`.
+- The manual sync CLI runs database migrations first, then executes the requested sync source.
+- Use `--status` to inspect `data_sync_log` without changing any data.
+- OpenSky sync failures are recorded in `data_sync_log.last_sync_error` with compact error messages so DNS, HTTP, and DB write issues are easier to diagnose.
+- OpenSky imports now retry transient DNS/connection/timeout failures automatically during the same run.
+
+### Useful SQL Checks
+
+```bash
+docker exec flight-logger-db-1 mariadb -uroot -proot -e \
+  "USE flightlogs; SELECT source, last_sync_status, row_count, LEFT(COALESCE(last_sync_error,''),240), last_synced_at FROM data_sync_log ORDER BY last_synced_at DESC;"
+
+docker exec flight-logger-db-1 mariadb -uroot -proot -e \
+  "USE flightlogs; SELECT COUNT(*) AS total_rows, SUM(manufacturer IS NOT NULL) AS manufacturer_rows, SUM(type_code IS NOT NULL) AS type_rows FROM aircraft_registry;"
+```
+
 ### Common Migration Commands
 
 From the `backend/` directory with the virtual environment activated:

@@ -240,6 +240,33 @@ Then either:
 - Upgrade: `python migrate.py upgrade`
 - Or downgrade: `python migrate.py downgrade`
 
+### Data sync succeeds on startup but enrichment data is missing
+
+Check the sync status table first:
+
+```bash
+docker exec flight-logger-backend-1 python /app/sync_data.py --status
+```
+
+Or inspect the database directly:
+
+```bash
+docker exec flight-logger-db-1 mariadb -uroot -proot -e \
+  "USE flightlogs; SELECT source, last_sync_status, row_count, LEFT(COALESCE(last_sync_error,''),240), last_synced_at FROM data_sync_log ORDER BY last_synced_at DESC;"
+```
+
+To retry the main aircraft enrichment import manually:
+
+```bash
+docker exec flight-logger-backend-1 python /app/sync_data.py opensky_aircraft
+```
+
+Notes:
+- `opensky_aircraft` is the bulk source that fills `manufacturer`, `model`, `type_code`, and related `aircraft_registry` fields.
+- `faa_aircraft` is intentionally sparse and mainly contributes `icao24` and registration data.
+- The manual sync CLI runs migrations before syncing, uses the same service layer as the startup scheduler, and writes status back to `data_sync_log`.
+- Recent OpenSky sync failures are recorded with compact error summaries so transient DNS failures and DB write issues can be distinguished quickly.
+
 ## Migration File Naming
 
 Migrations use timestamp-based naming:
