@@ -28,7 +28,7 @@ async def send_verification_email(to_email: str, token: str, settings: Settings)
 
     await _send_email(
         to_email=to_email,
-        subject="Verify your Flight Tracker email",
+        subject="Verify your Chemtrail Tracker email",
         body=(
             f"Hi,\n\n"
             f"Please verify your email address by clicking the link below:\n\n"
@@ -53,7 +53,7 @@ async def send_password_reset_email(to_email: str, token: str, settings: Setting
 
     await _send_email(
         to_email=to_email,
-        subject="Reset your Flight Tracker password",
+        subject="Reset your Chemtrail Tracker password",
         body=(
             f"Hi,\n\n"
             f"You requested a password reset. Click the link below to set a new password:\n\n"

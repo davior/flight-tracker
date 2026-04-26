@@ -326,14 +326,21 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- Password reset (highest priority — from email link) -->
-    <PasswordResetModal v-if="resetToken" :token="resetToken" @done="resetToken = null" />
+    <div
+      v-if="resetToken || (!authStore.isLoading && !authStore.isAuthenticated) || authStore.needsVerification"
+      class="absolute inset-0 z-[1800] bg-[url('/background-full.png')] bg-cover bg-center bg-no-repeat"
+    >
+      <div class="absolute inset-0 bg-slate-950/55"></div>
 
-    <!-- Auth gate -->
-    <AuthModal v-else-if="!authStore.isLoading && !authStore.isAuthenticated" />
+      <!-- Password reset (highest priority — from email link) -->
+      <PasswordResetModal v-if="resetToken" :token="resetToken" @done="resetToken = null" />
 
-    <!-- Email verification required -->
-    <EmailVerificationScreen v-else-if="authStore.needsVerification" />
+      <!-- Auth gate -->
+      <AuthModal v-else-if="!authStore.isLoading && !authStore.isAuthenticated" />
+
+      <!-- Email verification required -->
+      <EmailVerificationScreen v-else-if="authStore.needsVerification" />
+    </div>
 
     <!-- One-time tutorial -->
     <TutorialModal v-else-if="authStore.needsTutorial" @done="authStore.markTutorialSeen()" />

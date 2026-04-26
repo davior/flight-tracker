@@ -1,8 +1,8 @@
-# Flight Tracker — Architecture Document
+# Chemtrail Tracker (Flight Tracker) — Architecture Document
 
 ## Overview
 
-Flight Tracker is a full-stack web application for viewing live aircraft positions on a map and logging flight sightings. It consists of three services orchestrated by Docker Compose: a Vue 3 single-page application, a FastAPI backend, and a MariaDB database.
+Chemtrail Tracker is a full-stack web application for viewing live aircraft positions on a map and logging flight sightings. It consists of three services orchestrated by Docker Compose: a Vue 3 single-page application, a FastAPI backend, and a MariaDB database.
 
 ---
 

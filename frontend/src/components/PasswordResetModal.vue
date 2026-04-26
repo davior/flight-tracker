@@ -41,7 +41,7 @@ async function handleReset(): Promise<void> {
 </script>
 
 <template>
-  <div class="absolute inset-0 z-[3000] flex items-center justify-center bg-slate-950/70 p-4">
+  <div class="absolute inset-0 z-[3000] flex items-center justify-center p-4">
     <div class="glass-panel w-full max-w-sm rounded-[2rem] p-8">
       <h2 class="mb-1 text-lg font-bold">Set new password</h2>
       <p class="mb-6 text-sm text-[var(--muted)]">Choose a strong password for your account.</p>
