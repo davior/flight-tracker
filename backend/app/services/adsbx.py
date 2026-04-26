@@ -32,6 +32,7 @@ class ADSBxLiveFlightProvider:
             supports_history=False,
             max_history_minutes=0,
             history_step_minutes=HISTORY_STEP_MINUTES,
+            supports_trajectory=False,
         )
 
     def get_flight_by_icao24(

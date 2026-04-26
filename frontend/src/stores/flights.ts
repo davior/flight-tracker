@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
 
-import { ApiError, fetchFlightTrajectory, fetchLiveFlightCapabilities, fetchLiveFlights } from "@/lib/api";
-import type { ApiLiveFlight, ApiLiveFlightCapabilities, ApiTrajectoryPoint } from "@/types/api";
+import { ApiError, fetchFlightTrajectory, fetchLiveFlightCapabilities, fetchLiveFlights, fetchProviderStatus } from "@/lib/api";
+import type { ApiLiveFlight, ApiLiveFlightCapabilities, ApiProviderStatus, ApiTrajectoryPoint } from "@/types/api";
 import { useMapStore } from "./map";
 import { useUiStore } from "./ui";
 
@@ -20,7 +20,9 @@ export const useFlightsStore = defineStore("flights", () => {
     supports_history: false,
     max_history_minutes: 0,
     history_step_minutes: 1,
+    supports_trajectory: false,
   });
+  const providerStatus = ref<ApiProviderStatus | null>(null);
   const isLoading = ref(false);
   const isLoadingCapabilities = ref(false);
   const error = ref<string | null>(null);
@@ -70,6 +72,14 @@ export const useFlightsStore = defineStore("flights", () => {
       uiStore.liveTimeShiftMinutes = 0;
     } finally {
       isLoadingCapabilities.value = false;
+    }
+  }
+
+  async function loadProviderStatus(): Promise<void> {
+    try {
+      providerStatus.value = await fetchProviderStatus();
+    } catch {
+      // Status is best-effort — don't surface errors to the user
     }
   }
 
@@ -180,11 +190,13 @@ export const useFlightsStore = defineStore("flights", () => {
           timeShiftMinutes: effectiveTimeShiftMinutes.value,
         });
         resetRateLimitBackoff();
+        void loadProviderStatus();
         if (pollingEnabled.value && isWindowActive.value) {
           scheduleNextPoll(DEFAULT_POLL_INTERVAL_MS);
         }
       } catch (nextError) {
         error.value = nextError instanceof Error ? nextError.message : "Unable to fetch live flights";
+        void loadProviderStatus();
         if (isLiveProviderRateLimitError(nextError)) {
           handleRateLimitFailure();
           if (pollingEnabled.value && isWindowActive.value) {
@@ -232,7 +244,7 @@ export const useFlightsStore = defineStore("flights", () => {
   }
 
   async function loadTrajectory(icao24: string | null): Promise<void> {
-    if (!icao24 || !liveCapabilities.value.supports_history) {
+    if (!icao24 || !liveCapabilities.value.supports_trajectory) {
       liveTrajectory.value = [];
       return;
     }
@@ -285,10 +297,12 @@ export const useFlightsStore = defineStore("flights", () => {
     liveFlights,
     liveTrajectory,
     loadCapabilities,
+    loadProviderStatus,
     loadTrajectory,
     nextAllowedPollAt,
     pollingHandle,
     pollingEnabled,
+    providerStatus,
     refresh,
     resetRateLimitBackoff,
     scheduleNextPoll,

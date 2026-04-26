@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, Numeric, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -162,3 +162,16 @@ class DataSyncLog(Base):
     last_sync_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
     last_sync_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class ProviderRequestLog(Base):
+    __tablename__ = "provider_request_log"
+    __table_args__ = (
+        Index("ix_provider_request_log_provider_requested_at", "provider_name", "requested_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    provider_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)

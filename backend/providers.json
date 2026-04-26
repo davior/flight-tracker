@@ -1,0 +1,32 @@
+{
+  "providers": [
+    {
+      "name": "opensky",
+      "enabled": true,
+      "capabilities": {
+        "supports_time_shift": true,
+        "supports_trajectory": true,
+        "max_history_minutes": 60,
+        "history_step_minutes": 1
+      },
+      "rate_limit": {
+        "max_requests": 400,
+        "period_seconds": 86400
+      }
+    },
+    {
+      "name": "adsbx",
+      "enabled": true,
+      "capabilities": {
+        "supports_time_shift": false,
+        "supports_trajectory": false,
+        "max_history_minutes": 0,
+        "history_step_minutes": 1
+      },
+      "rate_limit": {
+        "max_requests": 10000,
+        "period_seconds": 86400
+      }
+    }
+  ]
+}

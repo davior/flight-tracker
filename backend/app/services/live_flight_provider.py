@@ -25,6 +25,7 @@ class LiveFlightCapabilities:
     supports_history: bool
     max_history_minutes: int
     history_step_minutes: int
+    supports_trajectory: bool = False
 
 
 class LiveFlightProviderError(RuntimeError):

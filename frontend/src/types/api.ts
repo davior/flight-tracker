@@ -78,6 +78,27 @@ export interface ApiLiveFlightCapabilities {
   supports_history: boolean;
   max_history_minutes: number;
   history_step_minutes: number;
+  supports_trajectory: boolean;
+}
+
+export interface ApiProviderInfo {
+  name: string;
+  is_active: boolean;
+  is_healthy: boolean;
+  requests_in_period: number;
+  max_requests: number | null;
+  period_seconds: number | null;
+  last_request_at: number | null;
+  last_error_at: number | null;
+  last_error_code: string | null;
+  rate_limited_until: number | null;
+  supports_time_shift: boolean;
+  supports_trajectory: boolean;
+}
+
+export interface ApiProviderStatus {
+  active_provider: string;
+  providers: ApiProviderInfo[];
 }
 
 export interface ApiLoggedFlight {

@@ -90,6 +90,8 @@ class Settings:
     app_base_url: str = "http://localhost:5173"
     # Google OAuth
     google_client_id: str | None = None
+    # Provider config
+    providers_config_path: str | None = None
     # Logging
     log_level: str = "INFO"
     log_file: Path | None = None
@@ -144,6 +146,7 @@ class Settings:
             smtp_from_email=os.getenv("SMTP_FROM_EMAIL", "noreply@example.com"),
             app_base_url=os.getenv("APP_BASE_URL", "http://localhost:5173"),
             google_client_id=os.getenv("GOOGLE_CLIENT_ID"),
+            providers_config_path=os.getenv("PROVIDERS_CONFIG_PATH"),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             log_file=Path(v) if (v := os.getenv("LOG_FILE")) else None,
             log_max_bytes=int(os.getenv("LOG_MAX_BYTES", str(10 * 1024 * 1024))),

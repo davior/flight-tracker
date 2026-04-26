@@ -3,6 +3,7 @@ import type {
   ApiLiveFlight,
   ApiLiveFlightCapabilities,
   ApiLoggedFlight,
+  ApiProviderStatus,
   ApiTrajectoryResponse,
   CreateLogFields,
   LoggedTimeWindowDays,
@@ -99,6 +100,10 @@ export async function fetchLiveFlights(params: {
 
 export async function fetchLiveFlightCapabilities(): Promise<ApiLiveFlightCapabilities> {
   return fetchJson<ApiLiveFlightCapabilities>("/flights/capabilities");
+}
+
+export async function fetchProviderStatus(): Promise<ApiProviderStatus> {
+  return fetchJson<ApiProviderStatus>("/flights/provider-status");
 }
 
 export async function fetchLoggedFlights(params: {
