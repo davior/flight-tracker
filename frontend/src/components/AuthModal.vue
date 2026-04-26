@@ -109,7 +109,7 @@ function initGoogle(): void {
 </script>
 
 <template>
-  <div class="absolute inset-0 z-[2000] flex items-end bg-slate-950/60 p-3 md:items-center md:justify-center">
+  <div class="absolute inset-0 z-[2000] flex items-end p-3 md:items-center md:justify-center">
     <div class="glass-panel w-full rounded-[2rem] p-6 md:max-w-md">
       <!-- Header -->
       <div class="mb-6 text-center">
@@ -117,9 +117,9 @@ function initGoogle(): void {
           <svg class="h-7 w-7 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
           </svg>
-          <span class="text-xl font-bold tracking-tight">Flight Tracker</span>
+          <span class="text-xl font-bold tracking-tight">Chemtrail Tracker</span>
         </div>
-        <p class="text-sm text-[var(--muted)]">Track aircraft sightings from anywhere</p>
+        <p class="text-sm">Log chemtrails live (or up to one hour in the past) from anywhere</p>
       </div>
 
       <!-- Tabs (login/register) -->
@@ -151,6 +151,7 @@ function initGoogle(): void {
           placeholder="Email or username"
           autocomplete="username"
           class="w-full rounded-xl bg-white/8 px-4 py-3 text-sm placeholder-[var(--muted)] outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+          name="username"
         />
         <input
           v-model="loginPassword"
@@ -158,6 +159,7 @@ function initGoogle(): void {
           placeholder="Password"
           autocomplete="current-password"
           class="w-full rounded-xl bg-white/8 px-4 py-3 text-sm placeholder-[var(--muted)] outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+          name="password"
         />
         <div class="text-right">
           <button type="button" class="text-xs text-[var(--muted)] hover:text-white" @click="switchTab('forgot')">

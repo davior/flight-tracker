@@ -1,8 +1,8 @@
-# Flight Logger – Frontend Specification
+# Chemtrail Tracker (Flight Logger) – Frontend Specification
 
 ## Overview
 
-Build a responsive frontend interface for the Flight Logger backend.
+Build a responsive frontend interface for the Chemtrail Tracker (Flight Logger) backend.
 
 The UI must work seamlessly across:
 

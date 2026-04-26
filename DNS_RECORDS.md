@@ -97,6 +97,6 @@ curl -s --ssl-reqd \
   --upload-file - <<EOF
 Subject: Test
 
-Hello from Flight Tracker.
+Hello from Chemtrail Tracker (chemtrail-tracker.com).
 EOF
 ```

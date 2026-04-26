@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy / update the Flight Tracker application.
+# Deploy / update the Chemtrail Tracker (Flight Tracker) application.
 # Run from the repository root on the server.
 set -euo pipefail
 

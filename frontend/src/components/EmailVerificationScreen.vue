@@ -23,7 +23,7 @@ async function resend(): Promise<void> {
 </script>
 
 <template>
-  <div class="absolute inset-0 z-[2000] flex items-center justify-center bg-slate-950/60 p-4">
+  <div class="absolute inset-0 z-[2000] flex items-center justify-center p-4">
     <div class="glass-panel w-full max-w-sm rounded-[2rem] p-8 text-center">
       <!-- Icon -->
       <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent)]/15">
