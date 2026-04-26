@@ -34,6 +34,7 @@ class OpenSkyLiveFlightProvider:
             supports_history=supports_history,
             max_history_minutes=MAX_HISTORY_MINUTES if supports_history else 0,
             history_step_minutes=HISTORY_STEP_MINUTES,
+            supports_trajectory=supports_history,
         )
 
     def get_flight_by_icao24(

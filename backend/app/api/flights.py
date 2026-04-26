@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.dependencies import get_app_settings, get_enrichment_queue, get_live_flight_provider
 from app.models import AircraftRegistry
-from app.schemas import LiveFlightCapabilitiesResponse, NearbyFlightResponse, TrajectoryResponse, build_display_type, normalize_icao24
+from app.schemas import LiveFlightCapabilitiesResponse, NearbyFlightResponse, ProviderStatusItem, ProviderStatusResponse, TrajectoryResponse, build_display_type, normalize_icao24
 from app.services.aircraft_categories import load_aircraft_category_map, resolve_aircraft_category_details
 from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
 from app.services.live_flight_provider import LiveFlightProvider, LiveFlightProviderError
+from app.services.provider_router import ProviderRouter
 from app.services.trajectory import build_trajectory
 from app.utils.geo import radius_from_bounds
 
@@ -37,6 +38,55 @@ def get_live_flight_capabilities(
     live_flight_provider: LiveFlightProvider = Depends(get_live_flight_provider),
 ) -> LiveFlightCapabilitiesResponse:
     return LiveFlightCapabilitiesResponse.model_validate(live_flight_provider.capabilities)
+
+
+@router.get("/provider-status", response_model=ProviderStatusResponse)
+def get_provider_status(
+    live_flight_provider: LiveFlightProvider = Depends(get_live_flight_provider),
+) -> ProviderStatusResponse:
+    if not isinstance(live_flight_provider, ProviderRouter):
+        # Defensive fallback — should always be a ProviderRouter at runtime
+        caps = live_flight_provider.capabilities
+        return ProviderStatusResponse(
+            active_provider=caps.provider,
+            providers=[
+                ProviderStatusItem(
+                    name=caps.provider,
+                    is_active=True,
+                    is_healthy=True,
+                    requests_in_period=0,
+                    max_requests=None,
+                    period_seconds=None,
+                    last_request_at=None,
+                    last_error_at=None,
+                    last_error_code=None,
+                    rate_limited_until=None,
+                    supports_time_shift=caps.supports_history,
+                    supports_trajectory=caps.supports_trajectory,
+                )
+            ],
+        )
+    stats = live_flight_provider.get_status()
+    return ProviderStatusResponse(
+        active_provider=live_flight_provider.active_provider_name,
+        providers=[
+            ProviderStatusItem(
+                name=s.name,
+                is_active=s.is_active,
+                is_healthy=s.is_healthy,
+                requests_in_period=s.requests_in_period,
+                max_requests=s.max_requests,
+                period_seconds=s.period_seconds,
+                last_request_at=s.last_request_at,
+                last_error_at=s.last_error_at,
+                last_error_code=s.last_error_code,
+                rate_limited_until=s.rate_limited_until,
+                supports_time_shift=s.supports_time_shift,
+                supports_trajectory=s.supports_trajectory,
+            )
+            for s in stats
+        ],
+    )
 
 
 @router.get("/nearby", response_model=list[NearbyFlightResponse])

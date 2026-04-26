@@ -385,6 +385,7 @@ onBeforeUnmount(() => {
     <template v-if="authStore.isAuthenticated && !authStore.needsVerification && !authStore.needsTutorial">
       <ViewToggle :view="uiStore.view" @update:view="uiStore.view = $event" />
       <FloatingControls
+        :provider-status="flightsStore.providerStatus"
         @location="openLocationSettings"
         @refresh="refreshCurrentMode('manual')"
         @profile="profileSheetOpen = true"

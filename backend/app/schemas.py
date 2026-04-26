@@ -128,6 +128,27 @@ class LiveFlightCapabilitiesResponse(BaseModel):
     supports_history: bool
     max_history_minutes: int
     history_step_minutes: int
+    supports_trajectory: bool = False
+
+
+class ProviderStatusItem(BaseModel):
+    name: str
+    is_active: bool
+    is_healthy: bool
+    requests_in_period: int
+    max_requests: int | None
+    period_seconds: int | None
+    last_request_at: float | None
+    last_error_at: float | None
+    last_error_code: str | None
+    rate_limited_until: float | None
+    supports_time_shift: bool
+    supports_trajectory: bool
+
+
+class ProviderStatusResponse(BaseModel):
+    active_provider: str
+    providers: list[ProviderStatusItem]
 
 
 class PhotoResponse(BaseModel):

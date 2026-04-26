@@ -22,7 +22,8 @@ from app.services.data_seeder import DataSeeder
 from app.services.data_refresh_scheduler import DataRefreshScheduler
 from app.services.data_sync import DataSyncService
 from app.services.image_storage import ImageStorageService
-from app.services.live_flight_provider_factory import create_live_flight_provider
+from app.services.live_flight_provider_factory import create_provider_router
+from app.services.provider_usage_tracker import ProviderUsageTracker
 
 
 def create_app(settings_override: Settings | None = None) -> FastAPI:
@@ -43,7 +44,9 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         app.state.settings = settings
         app.state.engine = engine
         app.state.session_maker = session_maker
-        app.state.live_flight_provider = create_live_flight_provider(settings)
+        tracker = ProviderUsageTracker(session_maker)
+        app.state.provider_usage_tracker = tracker
+        app.state.live_flight_provider = create_provider_router(settings, tracker)
         app.state.enrichment_service = AircraftEnrichmentService(settings)
         app.state.enrichment_queue = AircraftEnrichmentQueue(session_maker, app.state.enrichment_service)
         app.state.image_storage = ImageStorageService(settings.upload_dir)
