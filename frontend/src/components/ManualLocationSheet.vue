@@ -90,7 +90,16 @@ watch(
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Location</p>
           <h2 class="text-xl font-bold">Location Settings</h2>
         </div>
-        <button class="rounded-full bg-white/70 px-3 py-1 text-sm font-semibold" @click="$emit('close')">Close</button>
+        <button
+          class="rounded-full bg-white/70 p-2 hover:bg-white/90"
+          aria-label="Close"
+          @click="$emit('close')"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
       <div class="mt-4 rounded-[1.5rem] border border-[var(--border)] bg-white/75 p-2">
         <div class="grid grid-cols-2 gap-2">

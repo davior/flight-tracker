@@ -242,8 +242,17 @@ async function confirmDelete() {
         <p v-if="loggedByLine(flight)" class="mt-2 text-xs text-[var(--muted)]">
           {{ loggedByLine(flight) }}
         </p>
-      </div>
-      <button class="rounded-full bg-white/70 px-3 py-1 text-sm font-semibold" @click="$emit('close')">Close</button>
+      </div> 
+        <button
+          class="rounded-full bg-white/70 p-2 hover:bg-white/90"
+          aria-label="Close"
+          @click="$emit('close')"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
     </div>
 
     <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
