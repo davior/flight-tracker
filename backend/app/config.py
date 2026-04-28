@@ -97,6 +97,17 @@ class Settings:
     log_file: Path | None = None
     log_max_bytes: int = 10 * 1024 * 1024
     log_backup_count: int = 5
+    # Admin seeding
+    admin_email: str = "admin@chemtrail-tracker.com"
+    admin_password: str = "change-me-admin-password"
+    # AI provider (deepseek | ollama | openai)
+    ai_provider: str = "deepseek"
+    ai_model: str = "deepseek-chat"
+    ai_api_key: str | None = None
+    ai_base_url: str | None = None
+    # Threat detection
+    auto_block_requests_per_minute: int = 300
+    auto_block_release_hours: int = 24
 
     @property
     def adsbx_snapshot_path(self) -> Path:
@@ -151,6 +162,14 @@ class Settings:
             log_file=Path(v) if (v := os.getenv("LOG_FILE")) else None,
             log_max_bytes=int(os.getenv("LOG_MAX_BYTES", str(10 * 1024 * 1024))),
             log_backup_count=int(os.getenv("LOG_BACKUP_COUNT", "5")),
+            admin_email=os.getenv("ADMIN_EMAIL", "admin@chemtrail-tracker.com"),
+            admin_password=os.getenv("ADMIN_PASSWORD", "change-me-admin-password"),
+            ai_provider=os.getenv("AI_PROVIDER", "deepseek"),
+            ai_model=os.getenv("AI_MODEL", "deepseek-chat"),
+            ai_api_key=os.getenv("AI_API_KEY"),
+            ai_base_url=os.getenv("AI_BASE_URL"),
+            auto_block_requests_per_minute=int(os.getenv("AUTO_BLOCK_REQUESTS_PER_MINUTE", "300")),
+            auto_block_release_hours=int(os.getenv("AUTO_BLOCK_RELEASE_HOURS", "24")),
         )
 
     def ensure_directories(self) -> None:

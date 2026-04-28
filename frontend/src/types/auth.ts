@@ -4,6 +4,8 @@ export interface AuthUser {
   username: string;
   is_verified: boolean;
   tutorial_seen: boolean;
+  is_admin: boolean;
+  is_active: boolean;
 }
 
 export interface AuthTokenResponse {
