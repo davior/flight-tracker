@@ -12,3 +12,4 @@ python-jose[cryptography]
 passlib[bcrypt]
 bcrypt<5
 aiosmtplib
+openai

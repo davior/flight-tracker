@@ -8,13 +8,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.logging_config import setup_logging
+from app.api.admin import router as admin_router
 from app.api.airports import router as airports_router
 from app.api.auth import router as auth_router
 from app.api.flights import router as flights_router
 from app.api.logs import photo_router, router as logs_router
 from app.config import Settings, get_settings
 from app.db import Base, create_db_engine, create_session_maker, wait_for_database
+from app.middleware.request_logger import RequestLoggerMiddleware
 from app.migrations import run_migrations
+from app.services.admin_seeder import seed_admin_user
 from app.services.aircraft_enrichment import AircraftEnrichmentService
 from app.services.aircraft_categories import seed_aircraft_categories
 from app.services.aircraft_enrichment_queue import AircraftEnrichmentQueue
@@ -24,6 +27,7 @@ from app.services.data_sync import DataSyncService
 from app.services.image_storage import ImageStorageService
 from app.services.live_flight_provider_factory import create_provider_router
 from app.services.provider_usage_tracker import ProviderUsageTracker
+from app.services.threat_detector import ThreatDetector
 
 
 def create_app(settings_override: Settings | None = None) -> FastAPI:
@@ -73,12 +77,16 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         session = session_maker()
         try:
             seed_aircraft_categories(session)
+            seed_admin_user(session, settings)
             session.commit()
         finally:
             session.close()
 
+        app.state.threat_detector = ThreatDetector(session_maker, settings)
+
         try:
             app.state.enrichment_queue.start()
+            app.state.threat_detector.start()
             app.state.enrichment_warmup_task = asyncio.create_task(
                 app.state.enrichment_queue.warm_snapshot(),
                 name="aircraft-enrichment-warmup",
@@ -90,6 +98,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             app.state.data_refresh_scheduler.start()
             yield
         finally:
+            await app.state.threat_detector.stop()
             if app.state.enrichment_warmup_task is not None:
                 app.state.enrichment_warmup_task.cancel()
                 try:
@@ -110,11 +119,13 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             engine.dispose()
 
     application = FastAPI(title="Flight Logger API", lifespan=lifespan)
+    application.add_middleware(RequestLoggerMiddleware)
     application.include_router(auth_router)
     application.include_router(airports_router)
     application.include_router(flights_router)
     application.include_router(logs_router)
     application.include_router(photo_router)
+    application.include_router(admin_router)
     return application
 
 

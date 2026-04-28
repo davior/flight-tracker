@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, Numeric, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, Numeric, String, Text, false as sa_false, true as sa_true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -27,6 +27,8 @@ class User(Base):
     password_reset_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     google_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     tutorial_seen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default=sa_false())
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default=sa_true())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     flight_logs: Mapped[list["FlightLog"]] = relationship(back_populates="owner")
@@ -175,3 +177,35 @@ class ProviderRequestLog(Base):
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class RequestLog(Base):
+    __tablename__ = "request_log"
+    __table_args__ = (
+        Index("ix_request_log_requested_at", "requested_at"),
+        Index("ix_request_log_ip_requested_at", "ip_address", "requested_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    ip_address: Mapped[str] = mapped_column(String(45), nullable=False)
+    method: Mapped[str] = mapped_column(String(8), nullable=False)
+    path: Mapped[str] = mapped_column(String(512), nullable=False)
+    status_code: Mapped[int] = mapped_column(Integer, nullable=False)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class IpBlockList(Base):
+    __tablename__ = "ip_block_list"
+
+    ip_address: Mapped[str] = mapped_column(String(45), primary_key=True)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    blocked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    release_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    blocked_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    auto_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default=sa_false())

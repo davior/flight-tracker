@@ -276,6 +276,8 @@ class UserResponse(BaseModel):
     username: str
     is_verified: bool
     tutorial_seen: bool
+    is_admin: bool = False
+    is_active: bool = True
 
 
 class TokenResponse(BaseModel):
@@ -357,3 +359,106 @@ class UpdateProfileRequest(BaseModel):
     username: str | None = None
     current_password: str | None = None
     new_password: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Admin schemas
+# ---------------------------------------------------------------------------
+
+class AdminUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    username: str
+    is_verified: bool
+    is_admin: bool
+    is_active: bool
+    tutorial_seen: bool
+    created_at: datetime
+    flight_log_count: int = 0
+
+
+class AdminUserCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: str
+    username: str
+    password: str
+    is_admin: bool = False
+
+
+class AdminUserUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    email: str | None = None
+    username: str | None = None
+    is_admin: bool | None = None
+    is_active: bool | None = None
+    is_verified: bool | None = None
+
+
+class AdminSetPasswordRequest(BaseModel):
+    new_password: str
+
+
+class RequestLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    ip_address: str
+    method: str
+    path: str
+    status_code: int
+    duration_ms: int
+    user_id: int | None
+    requested_at: datetime
+
+
+class IpBlockRequest(BaseModel):
+    ip_address: str
+    reason: str | None = None
+    release_hours: int | None = None
+
+
+class IpBlockResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    ip_address: str
+    reason: str | None
+    blocked_at: datetime
+    release_at: datetime | None
+    auto_blocked: bool
+    blocked_by_user_id: int | None
+
+
+class DailyMetricPoint(BaseModel):
+    date: str
+    value: int
+
+
+class MetricsOverviewResponse(BaseModel):
+    total_users: int
+    active_users: int
+    admin_users: int
+    total_flight_logs: int
+    requests_today: int
+    unique_visitors_today: int
+    requests_last_7_days: int
+
+
+class AiQueryRequest(BaseModel):
+    question: str
+    context_hint: str | None = None
+
+
+class AiQueryResponse(BaseModel):
+    answer: str
+    chart_type: str | None = None
+    chart_data: dict | None = None
+    model_used: str | None = None
+
+
+class DataSyncTriggerResponse(BaseModel):
+    source: str
+    message: str
