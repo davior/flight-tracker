@@ -40,7 +40,7 @@ def _user_response(user: User, session: Session) -> AdminUserResponse:
     )
 
 
-@router.get("/", response_model=dict)
+@router.get("", response_model=dict)
 def list_users(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
@@ -62,7 +62,7 @@ def list_users(
     }
 
 
-@router.post("/", response_model=AdminUserResponse, status_code=201)
+@router.post("", response_model=AdminUserResponse, status_code=201)
 def create_user(
     payload: AdminUserCreate,
     db: Session = Depends(get_db),

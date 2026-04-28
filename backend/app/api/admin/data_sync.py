@@ -40,7 +40,7 @@ _SOURCE_SEED_METHOD = {
 }
 
 
-@router.get("/", response_model=list[DataSyncStatusResponse])
+@router.get("", response_model=list[DataSyncStatusResponse])
 def list_sync_status(
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
