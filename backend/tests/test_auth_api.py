@@ -33,6 +33,20 @@ def test_register_creates_user_and_normalizes_credentials(app) -> None:
         assert login_response.status_code == 200
         assert login_response.json()["user"]["email"] == "pilot@example.com"
         assert login_response.json()["user"]["username"] == "spotterone"
+        assert login_response.json()["user"]["is_admin"] is False
+        assert login_response.json()["user"]["is_active"] is True
+
+
+def test_login_returns_admin_flags_for_seeded_admin(app) -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/auth/login",
+            json={"login": "admin@chemtrail-tracker.com", "password": "change-me-admin-password"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["user"]["is_admin"] is True
+        assert response.json()["user"]["is_active"] is True
 
 
 def test_register_returns_conflict_for_duplicate_username_case_insensitive(app) -> None:

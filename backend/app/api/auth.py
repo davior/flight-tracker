@@ -52,6 +52,8 @@ def _user_response(user: User) -> UserResponse:
         username=user.username,
         is_verified=user.is_verified,
         tutorial_seen=user.tutorial_seen,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
     )
 
 

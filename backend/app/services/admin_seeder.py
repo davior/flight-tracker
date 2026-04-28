@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models import User
-from app.services.auth_service import hash_password
+from app.services.auth_service import hash_password, verify_password
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +16,26 @@ def seed_admin_user(session: Session, settings: Settings) -> None:
     email = settings.admin_email.lower().strip()
     existing = session.query(User).filter_by(email=email).first()
     if existing:
-        # Ensure the existing record has admin privileges (idempotent upgrade)
+        updated = False
+        # Keep the seeded admin account aligned with env-configured credentials.
+        if not existing.password_hash or not verify_password(settings.admin_password, existing.password_hash):
+            existing.password_hash = hash_password(settings.admin_password)
+            updated = True
         if not existing.is_admin:
             existing.is_admin = True
+            updated = True
+        if not existing.is_active:
+            existing.is_active = True
+            updated = True
+        if not existing.is_verified:
+            existing.is_verified = True
+            updated = True
+        if not existing.tutorial_seen:
+            existing.tutorial_seen = True
+            updated = True
+        if updated:
             session.commit()
-            logger.info("Upgraded existing user %s to admin", email)
+            logger.info("Updated existing admin user: %s", email)
         return
 
     admin = User(
