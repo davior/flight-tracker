@@ -30,7 +30,7 @@ services:
 
   caddy:
     build:
-      context: ./frontend
+      context: .
       dockerfile: Dockerfile.prod
       args:
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}

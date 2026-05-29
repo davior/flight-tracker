@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chemtrail Tracker — log every chemtrail you see</title>
+<meta name="description" content="A map-first tool for spotting, identifying, and logging the aircraft overhead. Pull live data from OpenSky and ADS-B Exchange. Save what you see, with photos, to a public log." />
+<link rel="icon" href="assets/logo-mark.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="site.css" />
+</head>
+<body data-screen-label="01 Site — Landing">
+
+<!-- Top bar -->
+<header class="topbar">
+  <div class="container inner">
+    <a href="index.html" class="brand">
+      <img src="assets/logo-mark.svg" alt="" width="30" height="30" style="border-radius: 8px;" />
+      Chemtrail Tracker
+    </a>
+    <nav class="nav">
+      <a href="index.html#how">How it works</a>
+      <a href="features.html">Features</a>
+      <a href="index.html#sources">Data sources</a>
+      <a href="about.html">About</a>
+      <a href="index.html#faq">FAQ</a>
+    </nav>
+    <div class="topbar-cta">
+      <a href="https://github.com/davior/flight-tracker" class="btn btn-ghost" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://app.chemtrail-tracker.com" class="btn btn-primary">Open the app</a>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero" style="padding-bottom: 140px;">
+  <div class="container hero-inner">
+    <span class="hero-tag"><span class="hero-tag-dot"></span>Live aircraft data, polled every 20 seconds</span>
+    <h1>Look up. Log it. Don't let them disappear.</h1>
+    <p class="lead">Chemtrail Tracker is a map-first tool for spotting the aircraft overhead, capturing the moment with photos and a note, and building a public, searchable record of every chemtrail you see.</p>
+    <div class="hero-buttons">
+      <a href="https://app.chemtrail-tracker.com" class="btn btn-primary btn-lg">Open the live map →</a>
+      <a href="features.html" class="btn btn-ghost btn-lg">See what it does</a>
+    </div>
+  </div>
+
+  <!-- Floating dossier card -->
+  <div class="hero-meta">
+    <div class="hero-meta-card">
+      <div class="head">
+        <span>// LIVE FEED</span>
+        <span class="blink"></span>
+      </div>
+      <div class="row"><span class="k">callsign</span><span class="v">SWA2148</span></div>
+      <div class="row"><span class="k">aircraft</span><span class="v">B737-800</span></div>
+      <div class="row"><span class="k">altitude</span><span class="v">10,668 m</span></div>
+      <div class="row"><span class="k">heading</span><span class="v">274°</span></div>
+      <div class="row"><span class="k">chemtrail</span><span class="v" style="color: var(--live);">visible</span></div>
+      <div class="row"><span class="k">logged by</span><span class="v">3 spotters</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Live counter strip -->
+<div class="container">
+  <div class="live-strip">
+    <div>
+      <div class="num" style="color: var(--sky-700);">14,287</div>
+      <div class="label">Aircraft tracked this week</div>
+    </div>
+    <div>
+      <div class="num" style="color: var(--live);">2,914</div>
+      <div class="label">Chemtrails logged</div>
+    </div>
+    <div>
+      <div class="num" style="color: var(--logged);">847</div>
+      <div class="label">Active spotters</div>
+    </div>
+    <div>
+      <div class="num" style="color: var(--sky-700);">62</div>
+      <div class="label">Countries reporting</div>
+    </div>
+  </div>
+</div>
+
+<!-- How it works -->
+<section id="how">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow dossier">// THE PROCESS</span>
+      <h2>Three steps. No friction.</h2>
+      <p>Open the map. Tap the plane. Send the report. Every log adds to a public record that's searchable by aircraft, region, and time.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="num">01</div>
+        <h3>See what's overhead</h3>
+        <p>The map shows live aircraft positions in your viewport, polled every 20 seconds. Time-shift up to 60 minutes back to identify a plane you already saw.</p>
+      </div>
+      <div class="step">
+        <div class="num">02</div>
+        <h3>Tap and report</h3>
+        <p>Tap any aircraft to see its callsign, type, altitude, and heading. Hit "Report" to attach up to three photos and a note about the chemtrail you observed.</p>
+      </div>
+      <div class="step">
+        <div class="num">03</div>
+        <h3>Add it to the log</h3>
+        <p>Your sighting joins a public, viewport-filtered log. Anyone can browse logged flights by region or time window from three hours back to a full month.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Feature deep-dive: Live mode -->
+<section style="padding-top: 0;">
+  <div class="container">
+    <div class="feature">
+      <div>
+        <span class="eyebrow dossier">// LIVE MODE</span>
+        <h3>Every plane in your sky, in real time.</h3>
+        <p>Pan the map. The viewport defines the query — no fixed-radius nonsense. Aircraft positions refresh every 20 seconds, with a time-shift slider that scrubs from "now" back to one hour ago when your provider supports historical lookups.</p>
+        <ul>
+          <li>Map-first interface, debounced viewport queries</li>
+          <li>Live polling at 20-second intervals</li>
+          <li>Time-shift slider — 0 to 60 minutes back</li>
+          <li>Aircraft enrichment (manufacturer, model, registration) via ICAO24</li>
+        </ul>
+        <a href="features.html" class="btn btn-ghost">See all features →</a>
+      </div>
+      <div>
+        <div class="mockup">
+          <div class="mockup-screen">
+            <div class="mini-map">
+              <div class="pin live" style="top: 28%; left: 42%;"></div>
+              <div class="pin live" style="top: 55%; left: 60%;"></div>
+              <div class="pin live" style="top: 70%; left: 30%;"></div>
+              <div class="trail" style="top: 31%; left: 44%; width: 80px; transform: rotate(-15deg);"></div>
+              <div class="trail" style="top: 57%; left: 62%; width: 60px; transform: rotate(20deg);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature: Log mode -->
+    <div class="feature reverse">
+      <div>
+        <span class="eyebrow dossier">// LOG MODE</span>
+        <h3>The receipt for every chemtrail.</h3>
+        <p>Switch to logged mode and the map fills with every sighting submitted in your viewport. Filter by time window — three hours, one day, two weeks, a month. Tap any pin to see the photos, the note, and who logged it.</p>
+        <ul>
+          <li>Photos resized to 1600px, EXIF preserved</li>
+          <li>Up to 3 photos per log</li>
+          <li>Logger name, location, and exact aircraft position</li>
+          <li>Filter from 0.5 to 28 days back, in half-day increments</li>
+        </ul>
+        <a href="https://app.chemtrail-tracker.com" class="btn btn-primary">Browse the public log →</a>
+      </div>
+      <div>
+        <div class="mockup">
+          <div class="mockup-screen">
+            <div class="mini-map">
+              <div class="pin logged" style="top: 22%; left: 35%;"></div>
+              <div class="pin logged" style="top: 38%; left: 58%;"></div>
+              <div class="pin logged" style="top: 52%; left: 22%;"></div>
+              <div class="pin logged" style="top: 68%; left: 65%;"></div>
+              <div class="pin logged" style="top: 78%; left: 40%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Privacy & data note -->
+<section style="padding-top: 0;">
+  <div class="container">
+    <div class="section-head" style="max-width: 760px;">
+      <span class="eyebrow dossier">// PRIVACY DOSSIER</span>
+      <h2>What we keep, what we don't.</h2>
+      <p>You don't sign up. You don't hand over an email. You log a flight, and that flight goes on a public map with the data attached. Here's exactly what that means.</p>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout">
+        <h3><span class="dot"></span>What gets stored</h3>
+        <ul>
+          <li>The aircraft's ICAO24 identifier and any callsign / type info we could enrich</li>
+          <li>The aircraft's reported position at the moment you logged it</li>
+          <li>Your photos (resized, EXIF preserved) and your note</li>
+          <li>An optional logger name and approximate location, if you provide them</li>
+          <li>A random UUID generated in your browser, used only to mark logs as yours</li>
+        </ul>
+      </div>
+      <div class="callout">
+        <h3><span class="dot" style="background: var(--logged); box-shadow: 0 0 0 4px rgba(217,115,13,.15);"></span>What we don't do</h3>
+        <ul>
+          <li>No accounts, no passwords, no email collection</li>
+          <li>No analytics SDKs, no behavior tracking, no third-party trackers</li>
+          <li>No real-time websockets phoning home — polling is on your terms</li>
+          <li>No selling, sharing, or monetizing your logs</li>
+          <li>No retention of live-flight history beyond what providers expose</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Data sources -->
+<section id="sources" class="section-dark">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow dossier">// SOURCES OF RECORD</span>
+      <h2>Real data, named providers.</h2>
+      <p>Every aircraft you see comes from these named public APIs. No black-box guesswork. The product stays centralized, and the source is open on GitHub if you want to inspect how it works.</p>
+    </div>
+
+    <div class="sources">
+      <div class="source">
+        <span class="badge-mini">LIVE</span>
+        <div>
+          <h4>OpenSky Network</h4>
+          <p>Open community ADS-B receivers. Authenticated lookups support up to 60 minutes of historical position data — what powers the time-shift slider.</p>
+        </div>
+      </div>
+      <div class="source">
+        <span class="badge-mini">LIVE</span>
+        <div>
+          <h4>ADS-B Exchange</h4>
+          <p>Unfiltered, unblocked ADS-B feed. Current live positions only — no history.</p>
+        </div>
+      </div>
+      <div class="source">
+        <span class="badge-mini">META</span>
+        <div>
+          <h4>OpenSky aircraft registry</h4>
+          <p>Bulk import for aircraft enrichment — manufacturer, model, type code by ICAO24.</p>
+        </div>
+      </div>
+      <div class="source">
+        <span class="badge-mini">META</span>
+        <div>
+          <h4>FAA registry · OurAirports · OpenFlights</h4>
+          <p>Reference datasets for US registrations, airports, and route data. Synced on demand from the backend CLI.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Tech stack badges -->
+<section class="section-tight" style="padding-top: 56px; padding-bottom: 56px;">
+  <div class="container">
+    <div class="section-head" style="margin-bottom: 24px;">
+      <span class="eyebrow dossier">// THE STACK</span>
+      <p style="margin-top: 14px;">Open source. Publicly inspectable. Built in the open.</p>
+    </div>
+    <div class="badge-row">
+      <span class="badge"><span class="dot"></span>Vue 3</span>
+      <span class="badge"><span class="dot"></span>TypeScript</span>
+      <span class="badge"><span class="dot"></span>Pinia</span>
+      <span class="badge"><span class="dot"></span>Leaflet</span>
+      <span class="badge"><span class="dot"></span>FastAPI</span>
+      <span class="badge"><span class="dot"></span>SQLAlchemy</span>
+      <span class="badge"><span class="dot"></span>MariaDB</span>
+      <span class="badge"><span class="dot"></span>Docker</span>
+      <span class="badge"><span class="dot"></span>Caddy</span>
+      <a href="https://github.com/davior/flight-tracker" class="badge" target="_blank" rel="noopener" style="border-color: var(--sky-500); color: var(--sky-700);"><span class="dot"></span>github.com/davior/flight-tracker</a>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="padding-top: 56px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow dossier">// FREQUENTLY ASKED</span>
+      <h2>Questions, answered.</h2>
+    </div>
+    <div class="faq">
+      <details open>
+        <summary>Do I need an account?</summary>
+        <p>No. Your browser generates a random UUID on first load and stores it in local storage. That's how we link logs back to "you" without ever asking who you are. Clear your storage and you're a new spotter.</p>
+      </details>
+      <details>
+        <summary>What's a "chemtrail" here?</summary>
+        <p>For the purposes of this app, a chemtrail is whatever <em>you</em> log a flight as. We give you the live aircraft, you decide what to record. The community is full of people who suspect more is going on overhead than mainstream sources admit — Chemtrail Tracker is the receipt-keeping infrastructure for that observation, no argument required.</p>
+      </details>
+      <details>
+        <summary>Where does the flight data come from?</summary>
+        <p>OpenSky Network and ADS-B Exchange power the live aircraft layer at <code>app.chemtrail-tracker.com</code>. Aircraft metadata such as manufacturer, model, and registration is enriched via the OpenSky bulk registry and cached locally.</p>
+      </details>
+      <details>
+        <summary>Is the app open source?</summary>
+        <p>Yes. The code is public at <a href="https://github.com/davior/flight-tracker">github.com/davior/flight-tracker</a> so you can inspect the implementation, follow development, file issues, and contribute improvements.</p>
+      </details>
+      <details>
+        <summary>How long is logged data kept?</summary>
+        <p>Indefinitely. Logs are the public record — that's the design. If you logged something and want it removed, email the contact below.</p>
+      </details>
+      <details>
+        <summary>What about historical positions?</summary>
+        <p>The time-shift slider lets you scrub from "now" back to 60 minutes — useful for identifying a plane you saw a few minutes ago. Beyond that window, only logged sightings remain (which is exactly the point of logging them).</p>
+      </details>
+      <details>
+        <summary>Will you add real-time updates / WebSockets / accounts?</summary>
+        <p>Not in the current scope. The spec is deliberately minimal: poll, log, browse. If that changes, the GitHub issues are the place to make the case.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA -->
+<section style="padding-top: 0;">
+  <div class="container">
+    <div class="cta">
+      <div class="cta-inner">
+        <span class="eyebrow dossier" style="color: var(--sky-300);">// START LOGGING</span>
+        <h2>The next chemtrail is already overhead.</h2>
+        <p>Open the live map. Pan to your sky. Tap the plane. We'll handle the rest.</p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 8px;">
+          <a href="https://app.chemtrail-tracker.com" class="btn btn-primary btn-lg">Open the app</a>
+          <a href="https://github.com/davior/flight-tracker" class="btn btn-ghost btn-lg" style="background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.3);">View the source on GitHub</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="grid">
+      <div>
+        <a href="index.html" class="brand" style="color: #fff;">
+          <img src="assets/logo-mark.svg" alt="" width="28" height="28" style="border-radius: 8px;" />
+          Chemtrail Tracker
+        </a>
+        <p style="color: rgba(255,255,255,.55); font-size: 13px; line-height: 1.6; margin: 8px 0 0; max-width: 320px;">A map-first, open-source tool for logging the aircraft overhead. No accounts. No analytics. Just the receipts.</p>
+      </div>
+      <div>
+        <h5>Product</h5>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="https://app.chemtrail-tracker.com">Live map</a></li>
+          <li><a href="index.html#sources">Data sources</a></li>
+          <li><a href="index.html#faq">FAQ</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Project</h5>
+        <ul>
+          <li><a href="https://github.com/davior/flight-tracker">GitHub repo</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="https://geckopico.substack.com">Developer substack</a></li>
+          <li><a href="mailto:info@chemtrail-tracker.com">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Spot. Log. Share.</h5>
+        <p style="color: rgba(255,255,255,.55); font-size: 13px; line-height: 1.6; margin: 0;">Built for the sky-watching community. Powered by OpenSky &amp; ADS-B Exchange.</p>
+      </div>
+    </div>
+    <div class="legal">
+      <span>© 2025 Chemtrail Tracker · MIT licensed</span>
+      <span>chemtrail-tracker.com · <a href="mailto:info@chemtrail-tracker.com" style="color: rgba(255,255,255,.55);">info@chemtrail-tracker.com</a></span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

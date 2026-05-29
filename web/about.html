@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>About — Chemtrail Tracker</title>
+<meta name="description" content="Why Chemtrail Tracker exists, who built it, and how to get in touch." />
+<link rel="icon" href="assets/logo-mark.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="site.css" />
+</head>
+<body data-screen-label="03 Site — About">
+
+<!-- Top bar -->
+<header class="topbar">
+  <div class="container inner">
+    <a href="index.html" class="brand">
+      <img src="assets/logo-mark.svg" alt="" width="30" height="30" style="border-radius: 8px;" />
+      Chemtrail Tracker
+    </a>
+    <nav class="nav">
+      <a href="index.html#how">How it works</a>
+      <a href="features.html">Features</a>
+      <a href="index.html#sources">Data sources</a>
+      <a href="about.html" style="color: var(--sky-700);">About</a>
+      <a href="index.html#faq">FAQ</a>
+    </nav>
+    <div class="topbar-cta">
+      <a href="https://github.com/davior/flight-tracker" class="btn btn-ghost" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://app.chemtrail-tracker.com" class="btn btn-primary">Open the app</a>
+    </div>
+  </div>
+</header>
+
+<!-- Page intro -->
+<section class="page-intro">
+  <div class="container">
+    <span class="eyebrow dossier">// FILE: ABOUT.MD</span>
+    <h1>Built for the people looking up.</h1>
+    <p>One developer, one open-source repo, and a community of spotters who don't want their observations to disappear.</p>
+  </div>
+</section>
+
+<!-- Narrative -->
+<section style="padding-top: 80px; padding-bottom: 64px;">
+  <div class="container">
+    <div class="narrative">
+      <p>You've seen them. Crisscrossed white lines across an otherwise clear sky. Maybe they faded in twenty minutes; maybe they spread for hours. Maybe the plane was high; maybe it was a regional jet and you knew exactly what airline. Either way, by the time you thought to do something about it, the chemtrail was already drifting and the aircraft had moved out of frame.</p>
+      <p>Chemtrail Tracker exists because that observation deserves a record. Not a comment thread that scrolls past, not a screenshot in a folder you'll never reopen — a proper, queryable log. Aircraft identifier. Position. Time. Photo. Your note. On a public map, alongside every other sighting in the area.</p>
+      <p>The app pulls live aircraft data from OpenSky Network and ADS-B Exchange — the same feeds used by anyone serious about flight tracking. Nothing is invented. Nothing is filtered. If a plane is in the sky and the providers can see it, you can log it. If you want to verify how the product works, the entire codebase is on GitHub for public inspection.</p>
+      <p>There are no accounts. No email collection. No analytics SDKs. The viewport you're looking at is the query, your photos and note are the payload, and a UUID in your browser's localStorage is the only thing that links logs back to "you." That's the whole identity model. Clear your storage and you're a new person.</p>
+      <p>The goal is small and concrete: make it trivially easy to log what's overhead, and impossible to delete the record without an admin actually deleting it. The community decides what's worth logging.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Principles -->
+<section style="padding-top: 0;">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow dossier">// THE PRINCIPLES</span>
+      <h2>What this app refuses to do.</h2>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout">
+        <h3><span class="dot"></span>No editorializing</h3>
+        <p>The app doesn't tell you what a chemtrail is, why it's there, or whether you should be alarmed. It logs the aircraft and your observation. The interpretation is yours.</p>
+      </div>
+      <div class="callout">
+        <h3><span class="dot"></span>No moderation creep</h3>
+        <p>Logs are public records. We don't gate them behind an algorithm or hide them based on tone. The community sees what the community submits.</p>
+      </div>
+      <div class="callout">
+        <h3><span class="dot"></span>No data hostage-taking</h3>
+        <p>Your logs belong to the public record. The codebase is open source. The data sources are named. The implementation stays visible and auditable instead of disappearing behind a black box.</p>
+      </div>
+      <div class="callout">
+        <h3><span class="dot"></span>No tracking, no upsell</h3>
+        <p>Free. No ads. No premium tier. No analytics pixels. No newsletter you didn't ask to be on. Just the tool.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Contact -->
+<section class="section-dark">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow dossier" style="color: var(--sky-300);">// GET IN TOUCH</span>
+      <h2 style="color: #fff;">Three ways to reach the project.</h2>
+      <p style="color: rgba(255,255,255,.65);">For takedown requests, contributions, bug reports, or just to say something works.</p>
+    </div>
+
+    <div class="contact-grid">
+      <a href="mailto:info@chemtrail-tracker.com" class="contact-card" style="background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.1);">
+        <div class="label" style="color: rgba(255,255,255,.5);">// EMAIL</div>
+        <div class="value" style="color: var(--sky-300);">info@chemtrail-tracker.com</div>
+        <div class="meta" style="color: rgba(255,255,255,.55);">Best for takedown requests, abuse reports, or anything not appropriate for a public issue.</div>
+      </a>
+      <a href="https://github.com/davior/flight-tracker" class="contact-card" target="_blank" rel="noopener" style="background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.1);">
+        <div class="label" style="color: rgba(255,255,255,.5);">// GITHUB</div>
+        <div class="value" style="color: var(--sky-300);">davior/flight-tracker</div>
+        <div class="meta" style="color: rgba(255,255,255,.55);">File an issue, open a pull request, or inspect the code yourself. MIT licensed.</div>
+      </a>
+      <a href="https://geckopico.substack.com" class="contact-card" target="_blank" rel="noopener" style="background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.1);">
+        <div class="label" style="color: rgba(255,255,255,.5);">// SUBSTACK</div>
+        <div class="value" style="color: var(--sky-300);">geckopico.substack.com</div>
+        <div class="meta" style="color: rgba(255,255,255,.55);">Long-form notes from the developer — build progress, architecture, what's next.</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Stack credits -->
+<section class="section-tight">
+  <div class="container">
+    <div class="section-head" style="margin-bottom: 24px;">
+      <span class="eyebrow dossier">// CREDITS &amp; STACK</span>
+      <p style="margin-top: 14px;">Standing on the shoulders of open infrastructure.</p>
+    </div>
+    <div class="badge-row">
+      <span class="badge"><span class="dot"></span>Vue 3</span>
+      <span class="badge"><span class="dot"></span>TypeScript</span>
+      <span class="badge"><span class="dot"></span>Pinia</span>
+      <span class="badge"><span class="dot"></span>Leaflet</span>
+      <span class="badge"><span class="dot"></span>FastAPI</span>
+      <span class="badge"><span class="dot"></span>SQLAlchemy</span>
+      <span class="badge"><span class="dot"></span>MariaDB</span>
+      <span class="badge"><span class="dot"></span>Pillow</span>
+      <span class="badge"><span class="dot"></span>Docker</span>
+      <span class="badge"><span class="dot"></span>Caddy</span>
+      <span class="badge"><span class="dot"></span>OpenSky Network</span>
+      <span class="badge"><span class="dot"></span>ADS-B Exchange</span>
+      <span class="badge"><span class="dot"></span>OurAirports</span>
+      <span class="badge"><span class="dot"></span>OpenFlights</span>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="padding-top: 32px;">
+  <div class="container">
+    <div class="cta">
+      <div class="cta-inner">
+        <span class="eyebrow dossier" style="color: var(--sky-300);">// JOIN THE LOG</span>
+        <h2>The next chemtrail is already overhead.</h2>
+        <p>Open the live map. Pan to your sky. Tap the plane. We'll handle the rest.</p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 8px;">
+          <a href="https://app.chemtrail-tracker.com" class="btn btn-primary btn-lg">Open the app</a>
+          <a href="https://github.com/davior/flight-tracker" class="btn btn-ghost btn-lg" style="background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.3);">View the source on GitHub</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="grid">
+      <div>
+        <a href="index.html" class="brand" style="color: #fff;">
+          <img src="assets/logo-mark.svg" alt="" width="28" height="28" style="border-radius: 8px;" />
+          Chemtrail Tracker
+        </a>
+        <p style="color: rgba(255,255,255,.55); font-size: 13px; line-height: 1.6; margin: 8px 0 0; max-width: 320px;">A map-first, open-source tool for logging the aircraft overhead. No accounts. No analytics. Just the receipts.</p>
+      </div>
+      <div>
+        <h5>Product</h5>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="https://app.chemtrail-tracker.com">Live map</a></li>
+          <li><a href="index.html#sources">Data sources</a></li>
+          <li><a href="index.html#faq">FAQ</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Project</h5>
+        <ul>
+          <li><a href="https://github.com/davior/flight-tracker">GitHub repo</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="https://geckopico.substack.com">Developer substack</a></li>
+          <li><a href="mailto:info@chemtrail-tracker.com">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Spot. Log. Share.</h5>
+        <p style="color: rgba(255,255,255,.55); font-size: 13px; line-height: 1.6; margin: 0;">Built for the sky-watching community. Powered by OpenSky &amp; ADS-B Exchange.</p>
+      </div>
+    </div>
+    <div class="legal">
+      <span>© 2025 Chemtrail Tracker · MIT licensed</span>
+      <span>chemtrail-tracker.com · <a href="mailto:info@chemtrail-tracker.com" style="color: rgba(255,255,255,.55);">info@chemtrail-tracker.com</a></span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

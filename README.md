@@ -2,6 +2,12 @@
 
 Flight Logger is a full-stack app for viewing nearby aircraft, logging sightings with photos, and browsing logged flights on a map-first UI.
 
+The repo is split into three main surfaces:
+
+- `web/` for the public website served on the apex domain and `www`
+- `frontend/` for the app served on `app.<domain>`
+- `backend/` for the shared API, auth, and data services
+
 ## Stack
 
 - Frontend: Vue 3, TypeScript, Vite, Pinia, Leaflet
@@ -28,6 +34,7 @@ Caddy needs these to resolve before it can issue TLS certificates:
 |--------|------|-------|
 | A | `chemtrail-tracker.com` | your server's public IP |
 | A | `www.chemtrail-tracker.com` | your server's public IP |
+| A | `app.chemtrail-tracker.com` | your server's public IP |
 
 ### 3. Clone the repo and create `.env`
 
@@ -56,6 +63,11 @@ Required values to fill in:
 ```
 
 This builds containers, starts all services, and runs database migrations.
+
+Production host routing:
+
+- `https://<domain>` and `https://www.<domain>` serve `web/`
+- `https://app.<domain>` serves `frontend/`
 
 ### 5. Configure DNS and email records
 
@@ -92,7 +104,8 @@ The easiest debug workflow is Docker Compose. It starts:
 
 - MariaDB on `localhost:3306`
 - FastAPI backend on `http://localhost:8000`
-- Vite frontend on `http://localhost:5173`
+- App frontend on `http://localhost:5173`
+- Public site on `http://localhost:5174`
 
 From the repo root:
 
@@ -123,13 +136,15 @@ docker compose up --build
 Debug behavior in this setup:
 
 - The backend runs with `uvicorn --reload`
-- The frontend runs with the Vite dev server
+- The app frontend runs with the Vite dev server
+- The public site is served statically by Nginx
 - Source folders are mounted into the containers, so code changes are picked up without rebuilding
 - Docker Compose reads live-flight provider settings from the repo-root `.env` file if present
 
-## Open The App
+## Open The Project
 
-- Frontend UI: `http://localhost:5173`
+- App UI: `http://localhost:5173`
+- Public site: `http://localhost:5174`
 - Backend API docs: `http://localhost:8000/docs`
 
 ## Stop The Stack
@@ -208,6 +223,16 @@ Then run:
 ```bash
 npm run dev -- --host 0.0.0.0
 ```
+
+### 4. Run The Public Site Locally
+
+From the repo root:
+
+```bash
+docker compose up web
+```
+
+Or serve the directory with any static file server that points at `web/`.
 
 ## Run Tests
 
