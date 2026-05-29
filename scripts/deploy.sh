@@ -13,6 +13,13 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+# Guard: require shared "web" Docker network (created by the infra project)
+if ! docker network inspect web >/dev/null 2>&1; then
+    echo "ERROR: Docker network 'web' not found."
+    echo "Deploy the infra project first: cd /opt/infra && docker compose up -d"
+    exit 1
+fi
+
 echo "==> Pulling latest changes..."
 git pull origin main
 
