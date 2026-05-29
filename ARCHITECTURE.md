@@ -94,115 +94,238 @@ The FastAPI app is created via a `create_app()` factory. A lifespan context mana
 7. Initialise aircraft enrichment service and background queue
 
 Registered routers:
-- `flights_router` — prefix `/flights`
-- `logs_router` — prefix `/logs`
-- `photo_router` — prefix `/photos`
+- `auth_router` — prefix `/auth` (authentication endpoints)
+- `flights_router` — prefix `/flights` (live flight queries)
+- `logs_router` — prefix `/logs` (flight logging and retrieval)
+- `photo_router` — prefix `/photos` (photo serving)
+- `airports_router` — prefix `/airports` (airport data)
+- `admin_router` — prefix `/admin` (administrative operations)
 
 ### Configuration (`app/config.py`)
 
 All settings are loaded from environment variables via `Settings.from_env()` (LRU-cached). Key settings:
 
+**Database & Storage:**
+
 | Setting | Default | Description |
 |---|---|---|
 | `database_url` | MariaDB local | SQLAlchemy connection string |
-| `upload_dir` | `./uploads` | Uploaded photo storage |
-| `runtime_dir` | `/tmp/flight-logger-cache` | Aircraft DB snapshot cache |
-| `max_nearby_radius_km` | `500` | Max query radius |
-| `live_flight_provider` | `opensky` | Provider: `opensky` or `adsbx` |
-| `opensky_client_id` | `None` | OpenSky OAuth client ID |
-| `opensky_client_secret` | `None` | OpenSky OAuth client secret |
+| `upload_dir` | `./uploads` | Uploaded photo storage directory |
+| `runtime_dir` | `/tmp/flight-logger-cache` | Aircraft registry snapshot cache |
+| `max_nearby_radius_km` | `500` | Maximum query radius for live/logged flights |
+
+**Live Flight Provider:**
+
+| Setting | Default | Description |
+|---|---|---|
+| `live_flight_provider` | `opensky` | Active provider: `opensky` or `adsbx` |
+| `opensky_client_id` | `None` | OpenSky Network OAuth client ID |
+| `opensky_client_secret` | `None` | OpenSky Network OAuth client secret |
 | `adsbx_api_key` | `None` | ADS-B Exchange API key |
+| `adsbx_api_base_url` | `https://adsbexchange.com/api/aircraft` | ADS-B Exchange API endpoint |
+
+**Authentication & Security:**
+
+| Setting | Default | Description |
+|---|---|---|
+| `jwt_secret_key` | Required in prod | Secret key for JWT signing |
+| `jwt_algorithm` | `HS256` | JWT signing algorithm |
+| `access_token_expire_minutes` | `1440` | JWT token lifetime (1 day) |
+| `google_oauth_client_id` | `None` | Google OAuth client ID (optional) |
+| `google_oauth_client_secret` | `None` | Google OAuth client secret (optional) |
+
+**Email Service:**
+
+| Setting | Default | Description |
+|---|---|---|
+| `smtp_host` | `None` | SMTP server hostname |
+| `smtp_port` | `587` | SMTP server port |
+| `smtp_user` | `None` | SMTP authentication username |
+| `smtp_password` | `None` | SMTP authentication password |
+| `smtp_from_email` | `noreply@domain` | From address for transactional emails |
+
+**Logging & Features:**
+
+| Setting | Default | Description |
+|---|---|---|
+| `log_level` | `INFO` | Application log level |
+| `enable_ai_features` | `False` | Enable Claude AI integration |
+| `environment` | `development` | Deployment environment |
 
 ### API Endpoints
+
+#### Authentication (`/auth`)
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/auth/register` | Create a new user account |
+| `POST` | `/auth/login` | Authenticate and get JWT token |
+| `POST` | `/auth/verify-email` | Verify email with token |
+| `POST` | `/auth/request-password-reset` | Request password reset email |
+| `POST` | `/auth/reset-password` | Reset password with token |
+| `GET` | `/auth/me` | Get current authenticated user |
 
 #### Flights (`/flights`)
 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/flights/capabilities` | Provider capabilities (history support, limits) |
+| `GET` | `/flights/provider-status` | Status of configured live-flight providers |
 | `GET` | `/flights/nearby` | Live flights in map bounds; `time_shift_minutes` (0–60) for historical view |
-| `GET` | `/flights/{icao24}/trajectory` | Sampled historical positions for one aircraft |
+| `GET` | `/flights/trajectory/{icao24}` | Sampled historical positions for one aircraft |
 
 **Trajectory parameters:**
 - `max_history_minutes` (1–60, default **60**) — how far back to sample
 - `step_minutes` (1–10, default **10**) — interval between samples
 - Reference time is always **current wall-clock time** (not affected by time shift)
 
-#### Logs (`/logs`)
+#### Flight Logs (`/logs`)
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/logs` | Create a flight log (multipart, up to 3 photos) |
+| `POST` | `/logs` | Create a flight log (multipart, up to 3 photos; requires auth) |
+| `GET` | `/logs/{log_id}` | Get details of a specific logged flight |
+| `PATCH` | `/logs/{log_id}` | Edit a log (owner only; requires auth) |
+| `DELETE` | `/logs/{log_id}` | Delete a log (owner or admin; requires auth) |
 | `GET` | `/logs/nearby` | Logged flights in map bounds within a time window |
+
+#### Photos (`/photos`)
+
+| Method | Path | Description |
+|---|---|---|
 | `GET` | `/photos/{photo_id}` | Serve an uploaded photo |
+| `GET` | `/photos/{photo_id}/metadata` | Get photo metadata (EXIF, dimensions, etc.) |
 
 ### Services
 
+**Live Flight Providers:**
+
 | Service | Description |
 |---|---|
-| `opensky.py` | OpenSky Network provider — OAuth2 token management, bounds queries, ICAO24 single-aircraft queries, up to 60 min history |
-| `adsbx.py` | ADS-B Exchange provider — radius-based queries (max 185.2 km), no history |
-| `live_flight_provider.py` | `LiveFlightProvider` Protocol defining the provider interface |
-| `live_flight_provider_factory.py` | Selects and constructs the configured provider at startup |
-| `trajectory.py` | Samples historical positions by looping backward in time; skips radar dropouts silently |
-| `aircraft_enrichment.py` | Looks up ICAO24 in the aircraft registry cache; falls back to external snapshot |
+| `opensky.py` | OpenSky Network provider — OAuth2 token management, bounds queries, single-aircraft queries, up to 60 min history |
+| `adsbx.py` | ADS-B Exchange provider — radius-based queries (max 185.2 km), no history support |
+| `live_flight_provider.py` | Abstract `LiveFlightProvider` interface |
+| `live_flight_provider_factory.py` | Factory that selects and constructs the configured provider at startup |
+| `provider_router.py` | Routes requests between multiple providers for redundancy/fallback |
+| `provider_usage_tracker.py` | Monitors provider API usage and rate limits |
+
+**Aircraft Enrichment:**
+
+| Service | Description |
+|---|---|
+| `aircraft_enrichment.py` | ICAO24 lookup with local caching and fallback to external enrichment |
 | `aircraft_enrichment_queue.py` | Background queue for async registry enrichment |
-| `aircraft_categories.py` | Loads and resolves aircraft category labels/descriptions |
-| `image_storage.py` | Saves uploaded photos; resizes to max 1600px width; preserves EXIF |
+| `aircraft_categories.py` | Loads static aircraft category reference data and type mappings |
+
+**User & Authentication:**
+
+| Service | Description |
+|---|---|
+| `auth_service.py` | JWT token generation/validation, password hashing, verification token management |
+| `email_service.py` | Email sending for verification, password reset, and notifications |
+
+**Data & Storage:**
+
+| Service | Description |
+|---|---|
+| `image_storage.py` | Photo upload, resizing (max 1600px), EXIF preservation, deletion |
+| `trajectory.py` | Historical trajectory building by sampling backwards in time; skips radar dropouts |
+| `data_seeder.py` | Database initialization and reference data seeding |
+| `data_sync.py` | Manual or scheduled aircraft registry synchronization from external sources |
+| `data_refresh_scheduler.py` | Periodic refresh of reference data and caches |
+
+**Advanced Features:**
+
+| Service | Description |
+|---|---|
+| `ai_service.py` | Claude AI integration for analysis and features |
+| `threat_detector.py` | Anomaly detection and threat classification |
 
 ### Database Schema
 
 ```
+users                           (authentication & user accounts)
+├── id                  PK
+├── email               String(255), unique, indexed
+├── username            String(64), unique, indexed
+├── password_hash       String(255)
+├── is_verified         Boolean (default: false)
+├── verification_token  String(255)
+├── verification_token_expires DateTime
+├── password_reset_token String(255)
+├── password_reset_expires DateTime
+├── google_id           String(255), unique, optional
+├── tutorial_seen       Boolean (default: false)
+├── is_admin            Boolean (default: false)
+├── is_active           Boolean (default: true)
+└── created_at          DateTime (UTC)
+
 flight_logs
-├── id               PK
-├── created_at       DateTime (UTC)
-├── flight_time      DateTime (UTC)
-├── icao24           String(6), indexed
-├── callsign         String(16)
-├── origin_country   String(64)
-├── departure_airport String(8)
-├── arrival_airport  String(8)
-├── aircraft_latitude  Numeric(9,6)
-├── aircraft_longitude Numeric(9,6)
-├── altitude         Float
-├── velocity         Float
-├── heading          Float
-├── vertical_rate    Float
-├── owner_uuid       String(36), indexed
-├── logger_name      String(128)
-├── logger_location  String(255)
-├── logger_latitude  Numeric(9,6)
-├── logger_longitude Numeric(9,6)
-├── note             Text
-├── trajectory       JSON (list of {lat, lng, alt, heading, velocity, timestamp})
-└── photos           → flight_log_photos (cascade delete)
+├── id                  PK
+├── created_at          DateTime (UTC), indexed
+├── flight_time         DateTime (UTC), indexed
+├── icao24              String(6), indexed
+├── callsign            String(16)
+├── origin_country      String(64)
+├── departure_airport   String(8)
+├── arrival_airport     String(8)
+├── aircraft_latitude   Numeric(9,6)
+├── aircraft_longitude  Numeric(9,6)
+├── altitude            Float
+├── velocity            Float
+├── heading             Float
+├── vertical_rate       Float
+├── owner_id            FK → users.id, nullable, indexed
+├── owner_uuid          String(36), indexed (legacy)
+├── logger_name         String(128)
+├── logger_location     String(255)
+├── logger_latitude     Numeric(9,6)
+├── logger_longitude    Numeric(9,6)
+├── note                Text
+├── trajectory          JSON (trajectory points)
+└── photos              → flight_log_photos (cascade delete)
 
 flight_log_photos
-├── id               PK
-├── flight_log_id    FK → flight_logs.id (CASCADE DELETE), indexed
-├── file_path        String(512)
-└── created_at       DateTime (UTC)
+├── id                  PK
+├── flight_log_id       FK → flight_logs.id (CASCADE), indexed
+├── file_path           String(512)
+├── media_type          String(16)
+└── created_at          DateTime (UTC)
 
-aircraft_registry   (enrichment cache)
-├── icao24           PK String(6)
-├── registration     String(32)
-├── type_code        String(8), indexed
-├── manufacturer     String(128)
-├── model            String(128)
-├── category         String(16)
-├── first_seen       DateTime
-└── last_updated     DateTime
+aircraft_registry      (enrichment cache)
+├── icao24              PK String(6)
+├── registration        String(32)
+├── type_code           String(8), indexed
+├── manufacturer        String(128)
+├── model               String(128)
+├── category            String(16)
+├── operator            String(128)
+├── operator_icao       String(8)
+├── operator_iata       String(8)
+├── operator_callsign   String(64)
+├── owner               String(128)
+├── serial_number       String(32)
+├── first_seen          DateTime
+└── last_updated        DateTime
 
-aircraft_types      (reference)
-├── type_code        PK
+aircraft_types        (reference data)
+├── type_code           PK
 ├── manufacturer
 ├── model
 └── category
 
-aircraft_categories (reference)
-├── code             PK
+aircraft_categories   (reference data)
+├── code                PK
 ├── label
 └── description
+
+data_sync_log         (tracking external syncs)
+├── id                  PK
+├── source              String
+├── last_synced_at      DateTime
+├── last_sync_status    Enum
+├── last_sync_error     Text
+└── row_count           Integer
 ```
 
 Migrations are managed with **Alembic** and run automatically at startup.
@@ -238,11 +361,12 @@ App.vue
 
 | Store | Responsibility |
 |---|---|
+| `auth.ts` | Current user, JWT token, authentication status, login/logout/register |
 | `flights.ts` | Live flight list, polling, rate-limit backoff, trajectory fetch & cache |
-| `logs.ts` | Logged flight list, refresh, `byId()` lookup |
+| `logs.ts` | Logged flight list, refresh, `byId()` lookup, ownership tracking |
 | `map.ts` | Viewport bounds, user location, query bounds with 500 km clamp |
-| `ui.ts` | Mode, view, time shift, time window, selected flight ICAO24, selected log ID, toast messages |
-| `identity.ts` | Browser UUID (persisted in `localStorage`) |
+| `ui.ts` | Mode, view, time shift, time window, selected flight ICAO24, selected log ID, toasts |
+| `identity.ts` | Browser UUID (persisted in `localStorage`, legacy) |
 
 ### Key Data Flows
 

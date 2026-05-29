@@ -259,64 +259,76 @@ Time window:
 
 ---
 
-## User Identity (MVP)
+## User Authentication
 
-* Generate UUID on first load
-* Store in localStorage
-* Send with every log request
+* Email/password registration and login
+* Optional Google OAuth2
+* JWT token-based authentication for API requests
+* Session-based user identity (replaces UUID approach)
+* Email verification required before account use
+* Password reset via email token
+* Admin users can manage all logs
 
 ---
 
-## State Management
+## State Management (Pinia)
 
 Global state should include:
 
-* currentView (live / logged)
-* mapBounds
-* userLocation
-* logs
-* liveFlights
-* filters (time window)
+* `auth.ts` - Current user, JWT token, authentication status
+* `flights.ts` - Live flight list, polling status, trajectory cache
+* `logs.ts` - Logged flight list, refresh status
+* `map.ts` - Viewport bounds, user location, query bounds
+* `ui.ts` - Current view, view mode, time filters, selected flight, toasts
+* `identity.ts` - (Legacy) Browser UUID for backwards compatibility
 
 ---
 
 ## API Integration
 
+### Authentication
+
+* `POST /auth/register` - Create account
+* `POST /auth/login` - Get JWT token
+* `POST /auth/verify-email` - Verify email with token
+* `POST /auth/request-password-reset` - Request password reset
+* `POST /auth/reset-password` - Reset password with token
+* `GET /auth/me` - Get current user info
+
+All authenticated endpoints require `Authorization: Bearer {jwt_token}` header.
+
 ### Live Flights
 
-GET `/flights/nearby`
+`GET /flights/nearby`
 
-* params: lat, lon (center)
+* Query params: north, south, east, west, time_shift_minutes (optional)
 
 ---
 
 ### Logged Flights
 
-GET `/logs/nearby`
+`GET /logs/nearby`
 
-* params:
-
-  * lat
-  * lon
-  * bounds (if supported)
-  * time_window
+* Query params: north, south, east, west, time_window_days
+* Returns only logs within specified viewport and time window
+* Indicates ownership for filtering edit/delete actions
 
 ---
 
-### Create Log
+### Create/Edit/Delete Log
 
-POST `/logs`
-
-* multipart/form-data
-* includes images
+* `POST /logs` - Create log (multipart/form-data with images, requires auth)
+* `PATCH /logs/{log_id}` - Edit log (owner only)
+* `DELETE /logs/{log_id}` - Delete log (owner or admin only)
 
 ---
 
 ## Performance Considerations
 
-* Debounce map movement
-* Limit API calls
-* Use marker clustering if many points
+* Debounce map movement (300-500ms)
+* Limit API call frequency with rate-limit backoff
+* Cache trajectories in memory
+* Use marker clustering for large flight counts
 
 ---
 
@@ -324,22 +336,25 @@ POST `/logs`
 
 ### Mobile (primary)
 
-* Bottom sheet modals
-* Large touch targets
-* Fullscreen map
+* Bottom sheet modals for reporting flights
+* Large touch targets (48px minimum)
+* Fullscreen map with overlay controls
+* Bottom navigation bar for mode toggle
 
 ### Desktop
 
-* Optional side panel for list view
-* Hover interactions allowed
+* Side drawer for flight details
+* Hover interactions on markers
+* Keyboard shortcuts for common actions
 
 ---
 
 ## Future Considerations (Do NOT implement now)
 
-* User accounts
-* Notifications
-* Real-time WebSocket updates
-* Advanced clustering
+* Real-time WebSocket updates (polling is sufficient)
+* Advanced trajectory prediction
+* Flight plan routing data
+* Multi-device synchronization
+* Dark mode
 
 ---

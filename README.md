@@ -1,12 +1,13 @@
-# Flight Logger
+# Flight Tracker
 
-Flight Logger is a full-stack app for viewing nearby aircraft, logging sightings with photos, and browsing logged flights on a map-first UI.
+Flight Tracker (formerly Flight Logger) is a full-stack web application for viewing live aircraft on a map, logging flight sightings with photos, and browsing community logs. Users can create accounts, authenticate via email/password or Google OAuth, and share their flight observations with an interactive map interface.
 
-The repo is split into three main surfaces:
+The project is split into several services:
 
-- `web/` for the public website served on the apex domain and `www`
-- `frontend/` for the app served on `app.<domain>`
-- `backend/` for the shared API, auth, and data services
+- `web/` for the public website served on the apex domain
+- `frontend/` for the app UI served on `app.<domain>`
+- `backend/` for the REST API, authentication, and data services
+- `uploads/` volume for storing user-uploaded photos
 
 ## Stack
 
@@ -351,8 +352,9 @@ alembic downgrade -1
 
 ## Useful Notes
 
-- Uploaded photos are stored in `uploads/`
-- The frontend generates a local UUID and stores it in browser local storage
-- Database migrations run automatically on backend startup
-- The first aircraft-enrichment lookup may download a local ADS-B snapshot into `/tmp/flight-logger-cache`
+- Uploaded photos are stored in `uploads/` volume
+- User authentication uses JWT tokens issued by the backend
+- Database migrations run automatically on backend startup via Alembic
+- Aircraft enrichment uses cached snapshots stored locally and updated periodically
 - `.env.example` is safe to commit; keep your real `.env` local and untracked
+- For production, set `DOMAIN`, `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`, `JWT_SECRET_KEY`, and provider credentials in `.env`
