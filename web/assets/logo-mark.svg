@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Chemtrail Tracker">
+  <defs>
+    <linearGradient id="ct-sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2484c3"></stop>
+      <stop offset="100%" stop-color="#155485"></stop>
+    </linearGradient>
+    <linearGradient id="ct-trail" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0"></stop>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.55"></stop>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.95"></stop>
+    </linearGradient>
+    <radialGradient id="ct-shine" cx="58" cy="58" r="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45"></stop>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0.10"></stop>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"></stop>
+    </radialGradient>
+    <clipPath id="ct-tile-clip">
+      <rect x="0" y="0" width="64" height="64" rx="14" ry="14"></rect>
+    </clipPath>
+  </defs>
+
+  
+  <rect x="0" y="0" width="64" height="64" rx="14" ry="14" fill="url(#ct-sky)"></rect>
+
+  
+  <circle cx="14" cy="18" r="0.9" fill="#ffffff" opacity="0.35"></circle>
+  <circle cx="50" cy="52" r="0.9" fill="#ffffff" opacity="0.25"></circle>
+
+  
+  <path d="M 9 55 L 38 26" stroke="url(#ct-trail)" stroke-width="3.2" stroke-linecap="round" fill="none"></path>
+
+  
+  <g transform="translate(42 22) rotate(45)" fill="#ffffff">
+    
+    <path d="M 0 0&#xA;             L -13 4&#xA;             L -13 6&#xA;             L -2 6&#xA;             L 0 8&#xA;             L 2 6&#xA;             L 13 6&#xA;             L 13 4 Z"></path>
+    
+    <rect x="-1.6" y="-11" width="3.2" height="22" rx="1.4"></rect>
+    
+    <path d="M -1.6 -10 L 0 -13 L 1.6 -10 Z"></path>
+    
+    <path d="M 0 9&#xA;             L -5 11&#xA;             L -5 12&#xA;             L 5 12&#xA;             L 5 11 Z"></path>
+  </g>
+</svg>

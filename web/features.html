@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Features — Chemtrail Tracker</title>
+<meta name="description" content="Live mode, log mode, photo upload, time-shift, and the rest. A walkthrough of every feature in Chemtrail Tracker." />
+<link rel="icon" href="assets/logo-mark.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="site.css" />
+</head>
+<body data-screen-label="02 Site — Features">
+
+<!-- Top bar -->
+<header class="topbar">
+  <div class="container inner">
+    <a href="index.html" class="brand">
+      <img src="assets/logo-mark.svg" alt="" width="30" height="30" style="border-radius: 8px;" />
+      Chemtrail Tracker
+    </a>
+    <nav class="nav">
+      <a href="index.html#how">How it works</a>
+      <a href="features.html" style="color: var(--sky-700);">Features</a>
+      <a href="index.html#sources">Data sources</a>
+      <a href="about.html">About</a>
+      <a href="index.html#faq">FAQ</a>
+    </nav>
+    <div class="topbar-cta">
+      <a href="https://github.com/davior/flight-tracker" class="btn btn-ghost" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://app.chemtrail-tracker.com" class="btn btn-primary">Open the app</a>
+    </div>
+  </div>
+</header>
+
+<!-- Page intro -->
+<section class="page-intro" style="padding-bottom: 48px;">
+  <div class="container">
+    <span class="eyebrow dossier">// FILE: FEATURES.MD</span>
+    <h1>Every feature, by the receipt.</h1>
+    <p>What the app does, exactly. No vague promises — just the surfaces, the data, and the constraints.</p>
+  </div>
+</section>
+
+<!-- LIVE MODE feature -->
+<section style="padding-top: 64px;">
+  <div class="container">
+    <div class="feature">
+      <div>
+        <span class="eyebrow dossier">// 01 — LIVE MODE</span>
+        <h3>Whatever is overhead, right now.</h3>
+        <p>The map runs Leaflet. You pan; the viewport bounds become the query. Aircraft positions refresh on every map move (debounced) and on a 20-second background poll. No fixed-radius dropdowns. No "search this area" button.</p>
+        <ul>
+          <li>Viewport-based query — pan to query, zoom to filter</li>
+          <li>20-second polling, paused while you're interacting</li>
+          <li>Pluggable provider — OpenSky or ADS-B Exchange</li>
+          <li>Maximum query radius enforced server-side to keep providers happy</li>
+        </ul>
+      </div>
+      <div>
+        <div class="mockup">
+          <div class="mockup-screen">
+            <div class="mini-map">
+              <div class="pin live" style="top: 22%; left: 38%;"></div>
+              <div class="pin live" style="top: 44%; left: 55%;"></div>
+              <div class="pin live" style="top: 60%; left: 28%;"></div>
+              <div class="pin live" style="top: 72%; left: 62%;"></div>
+              <div class="trail" style="top: 25%; left: 40%; width: 70px; transform: rotate(-12deg);"></div>
+              <div class="trail" style="top: 47%; left: 57%; width: 50px; transform: rotate(18deg);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIME SHIFT -->
+    <div class="feature reverse">
+      <div>
+        <span class="eyebrow dossier">// 02 — TIME SHIFT</span>
+        <h3>Sixty minutes of memory.</h3>
+        <p>Saw a plane two minutes ago and missed your chance? Pull the time-shift slider back. With OpenSky's authenticated historical lookups, you can scrub from <code>now</code> to <code>now − 60 min</code> in five-minute steps and replay the airspace.</p>
+        <ul>
+          <li>Slider: 0 to 60 minutes back, 5-minute increments</li>
+          <li>Capability auto-detected — slider hides if your provider doesn't support it</li>
+          <li>Polling continues at the shifted timestamp until you change it</li>
+          <li>Aircraft enrichment runs the same as live mode</li>
+        </ul>
+      </div>
+      <div>
+        <div class="callout" style="background: linear-gradient(180deg, var(--sky-100), #fff); border: 1px solid var(--sky-300);">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--sky-700); letter-spacing: 0.12em; margin-bottom: 14px;">// PROVIDER CAPABILITIES</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; font-family: 'JetBrains Mono', monospace;">
+            <tr><td style="padding: 8px 0; color: var(--ink-500);">provider</td><td style="text-align: right; font-weight: 600;">opensky</td></tr>
+            <tr><td style="padding: 8px 0; color: var(--ink-500); border-top: 1px dashed rgba(18,28,38,.1);">supports_history</td><td style="text-align: right; font-weight: 600; border-top: 1px dashed rgba(18,28,38,.1); color: var(--live);">true</td></tr>
+            <tr><td style="padding: 8px 0; color: var(--ink-500); border-top: 1px dashed rgba(18,28,38,.1);">max_history_minutes</td><td style="text-align: right; font-weight: 600; border-top: 1px dashed rgba(18,28,38,.1);">60</td></tr>
+            <tr><td style="padding: 8px 0; color: var(--ink-500); border-top: 1px dashed rgba(18,28,38,.1);">history_step_minutes</td><td style="text-align: right; font-weight: 600; border-top: 1px dashed rgba(18,28,38,.1);">5</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG MODE -->
+    <div class="feature">
+      <div>
+        <span class="eyebrow dossier">// 03 — LOG MODE</span>
+        <h3>The receipts, on a map.</h3>
+        <p>Switch from <code>live</code> to <code>logged</code> and the same map fills with every sighting submitted in your viewport. Filter by time window — three hours back to a full month — and tap any pin to see the photos, the note, and the exact aircraft position at the moment of logging.</p>
+        <ul>
+          <li>Time windows: 0.5 to 28 days, half-day increments, default 1 day</li>
+          <li>Viewport-filtered (same query model as live)</li>
+          <li>Distinguishes your own logs from community logs</li>
+          <li>Owner can edit the note and add/remove photos</li>
+        </ul>
+      </div>
+      <div>
+        <div class="mockup">
+          <div class="mockup-screen">
+            <div class="mini-map">
+              <div class="pin logged" style="top: 18%; left: 30%;"></div>
+              <div class="pin logged" style="top: 30%; left: 56%;"></div>
+              <div class="pin logged" style="top: 42%; left: 22%;"></div>
+              <div class="pin logged" style="top: 56%; left: 48%;"></div>
+              <div class="pin logged" style="top: 68%; left: 70%;"></div>
+              <div class="pin logged" style="top: 80%; left: 35%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHOTO UPLOAD -->
+    <div class="feature reverse">
+      <div>
+        <span class="eyebrow dossier">// 04 — PHOTO UPLOAD</span>
+        <h3>Three photos. EXIF preserved.</h3>
+        <p>Tap "Take Photo" on mobile and the OS camera opens with capture intent. Or upload from your gallery. Up to three images per log, resized server-side to 1600px on the long edge — small enough to load fast, big enough to read a tail number.</p>
+        <ul>
+          <li>JPEG and PNG accepted</li>
+          <li>EXIF metadata preserved (timestamp, GPS, camera)</li>
+          <li>Strict 3-photo limit, server-enforced</li>
+          <li>Edit-mode photo management for log owners</li>
+        </ul>
+      </div>
+      <div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+          <div style="aspect-ratio: 1; border-radius: 14px; background: linear-gradient(135deg, var(--sky-300), var(--sky-700)); position: relative;">
+            <div style="position: absolute; inset: 0; background: linear-gradient(180deg, transparent 60%, rgba(255,255,255,.15)); border-radius: 14px;"></div>
+          </div>
+          <div style="aspect-ratio: 1; border-radius: 14px; background: linear-gradient(135deg, var(--sky-200), var(--sky-600)); position: relative;">
+            <div style="position: absolute; top: 30%; left: 20%; width: 60%; height: 2px; background: rgba(255,255,255,.7); transform: rotate(-25deg);"></div>
+          </div>
+          <div style="aspect-ratio: 1; border-radius: 14px; background: linear-gradient(135deg, var(--sky-400), var(--sky-800)); position: relative;">
+            <div style="position: absolute; top: 50%; left: 30%; width: 50%; height: 2px; background: rgba(255,255,255,.85); transform: rotate(15deg);"></div>
+          </div>
+        </div>
+        <div style="margin-top: 14px; padding: 14px 18px; background: #fff; border: 1px solid var(--border); border-radius: 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-500);">
+          <div>📷 IMG_2148.jpg — 1.4 MB · resized to 1600px</div>
+          <div>📷 IMG_2149.jpg — 1.1 MB · resized to 1600px</div>
+          <div>📷 IMG_2150.jpg — 0.9 MB · resized to 1600px</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AIRCRAFT ENRICHMENT -->
+    <div class="feature">
+      <div>
+        <span class="eyebrow dossier">// 05 — AIRCRAFT ENRICHMENT</span>
+        <h3>From hex code to "B737-800".</h3>
+        <p>Every aircraft broadcasts an ICAO24 — a 24-bit hex identifier. On its own, it's useless. Chemtrail Tracker enriches it against a local registry cache built from OpenSky's bulk dataset, with FAA and OurAirports as supporting sources.</p>
+        <ul>
+          <li>ICAO24 → registration, manufacturer, model, type code</li>
+          <li>Local cache, populated on demand</li>
+          <li>Bulk import via <code>sync_data.py opensky_aircraft</code></li>
+          <li>Graceful fallback when metadata is missing</li>
+        </ul>
+      </div>
+      <div>
+        <div class="callout">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--sky-700); letter-spacing: 0.12em; margin-bottom: 14px;">// AIRCRAFT_REGISTRY[A1B2C3]</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; font-family: 'JetBrains Mono', monospace;">
+            <tr><td style="padding: 6px 0; color: var(--ink-500);">icao24</td><td style="text-align: right; font-weight: 600;">A1B2C3</td></tr>
+            <tr><td style="padding: 6px 0; color: var(--ink-500); border-top: 1px dashed rgba(18,28,38,.1);">registration</td><td style="text-align: right; font-weight: 600; border-top: 1px dashed rgba(18,28,38,.1);">N847SW</td></tr>
+            <tr><td style="padding: 6px 0; color: var(--ink-500); border-top: 1px dashed rgba(18,28,38,.1);">manufacturer</td><td style="text-align: right; font-weight: 600; border-top: 1px dashed rgba(18,28,38,.1);">Boeing</td></tr>
+            <tr><td style="padding: 6px 0; color: var(--ink-500); border-top: 1px dashed rgba(18,28,38,.1);">model</td><td style="text-align: right; font-weight: 600; border-top: 1px dashed rgba(18,28,38,.1);">737-800</td></tr>
+            <tr><td style="padding: 6px 0; color: var(--ink-500); border-top: 1px dashed rgba(18,28,38,.1);">type_code</td><td style="text-align: right; font-weight: 600; border-top: 1px dashed rgba(18,28,38,.1);">B738</td></tr>
+            <tr><td style="padding: 6px 0; color: var(--ink-500); border-top: 1px dashed rgba(18,28,38,.1);">last_updated</td><td style="text-align: right; font-weight: 600; border-top: 1px dashed rgba(18,28,38,.1);">2 days ago</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOSSIER LIST -->
+<section class="section-dark">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow dossier" style="color: var(--sky-300);">// MORE IN THE BOX</span>
+      <h2>Smaller features, just as deliberate.</h2>
+    </div>
+
+    <div style="max-width: 880px; margin: 0 auto;">
+      <div class="dossier-line">
+        <span class="num" style="color: var(--sky-300);">06</span>
+        <div>
+          <h4 style="color: #fff;">Mobile-first by default</h4>
+          <p style="color: rgba(255,255,255,.65);">Bottom-sheet modals, big touch targets, fullscreen map. Designed to be used standing on the sidewalk, one hand, sun glare on the screen.</p>
+        </div>
+      </div>
+      <div class="dossier-line">
+        <span class="num" style="color: var(--sky-300);">07</span>
+        <div>
+          <h4 style="color: #fff;">Anonymous identity</h4>
+          <p style="color: rgba(255,255,255,.65);">A UUID generated in your browser, stored in localStorage. No accounts. No password recovery. No data linkage outside the logs you choose to make public.</p>
+        </div>
+      </div>
+      <div class="dossier-line">
+        <span class="num" style="color: var(--sky-300);">08</span>
+        <div>
+          <h4 style="color: #fff;">Edit your own logs</h4>
+          <p style="color: rgba(255,255,255,.65);">When the UUID matches the log owner, edit mode unlocks: change the note, add or remove photos (still capped at 3 total), or delete entirely.</p>
+        </div>
+      </div>
+      <div class="dossier-line">
+        <span class="num" style="color: var(--sky-300);">09</span>
+        <div>
+          <h4 style="color: #fff;">Manual location fallback</h4>
+          <p style="color: rgba(255,255,255,.65);">GPS off, denied, or wrong? Drop a pin manually. The viewport query doesn't actually need your location — but the "center on me" button does.</p>
+        </div>
+      </div>
+      <div class="dossier-line">
+        <span class="num" style="color: var(--sky-300);">10</span>
+        <div>
+          <h4 style="color: #fff;">Self-host or use ours</h4>
+          <p style="color: rgba(255,255,255,.65);">Run it on your own VPS with one shell script and a Caddyfile, or just open <code>app.chemtrail-tracker.com</code>. Same code, your call.</p>
+        </div>
+      </div>
+      <div class="dossier-line">
+        <span class="num" style="color: var(--sky-300);">11</span>
+        <div>
+          <h4 style="color: #fff;">No telemetry, no analytics</h4>
+          <p style="color: rgba(255,255,255,.65);">Zero third-party scripts. Zero tracking pixels. The only network traffic is to your chosen flight provider and the app's own backend.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="padding-top: 64px;">
+  <div class="container">
+    <div class="cta">
+      <div class="cta-inner">
+        <span class="eyebrow dossier" style="color: var(--sky-300);">// READY TO LOG</span>
+        <h2>Stop missing what you're looking at.</h2>
+        <p>The features above are live, today, on chemtrail-tracker.com. Open the app, pan to your sky.</p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 8px;">
+          <a href="https://app.chemtrail-tracker.com" class="btn btn-primary btn-lg">Open the app</a>
+          <a href="about.html" class="btn btn-ghost btn-lg" style="background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.3);">Why we built this</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="grid">
+      <div>
+        <a href="index.html" class="brand" style="color: #fff;">
+          <img src="assets/logo-mark.svg" alt="" width="28" height="28" style="border-radius: 8px;" />
+          Chemtrail Tracker
+        </a>
+        <p style="color: rgba(255,255,255,.55); font-size: 13px; line-height: 1.6; margin: 8px 0 0; max-width: 320px;">A map-first, open-source tool for logging the aircraft overhead. No accounts. No analytics. Just the receipts.</p>
+      </div>
+      <div>
+        <h5>Product</h5>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="https://app.chemtrail-tracker.com">Live map</a></li>
+          <li><a href="index.html#sources">Data sources</a></li>
+          <li><a href="index.html#faq">FAQ</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Project</h5>
+        <ul>
+          <li><a href="https://github.com/davior/flight-tracker">GitHub repo</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="https://geckopico.substack.com">Developer substack</a></li>
+          <li><a href="mailto:info@chemtrail-tracker.com">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Spot. Log. Share.</h5>
+        <p style="color: rgba(255,255,255,.55); font-size: 13px; line-height: 1.6; margin: 0;">Built for the sky-watching community. Powered by OpenSky &amp; ADS-B Exchange.</p>
+      </div>
+    </div>
+    <div class="legal">
+      <span>© 2025 Chemtrail Tracker · MIT licensed</span>
+      <span>chemtrail-tracker.com · <a href="mailto:info@chemtrail-tracker.com" style="color: rgba(255,255,255,.55);">info@chemtrail-tracker.com</a></span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
