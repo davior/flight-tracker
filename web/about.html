@@ -50,7 +50,7 @@
       <p>You've seen them. Crisscrossed white lines across an otherwise clear sky. Maybe they faded in twenty minutes; maybe they spread for hours. Maybe the plane was high; maybe it was a regional jet and you knew exactly what airline. Either way, by the time you thought to do something about it, the chemtrail was already drifting and the aircraft had moved out of frame.</p>
       <p>Chemtrail Tracker exists because that observation deserves a record. Not a comment thread that scrolls past, not a screenshot in a folder you'll never reopen — a proper, queryable log. Aircraft identifier. Position. Time. Photo. Your note. On a public map, alongside every other sighting in the area.</p>
       <p>The app pulls live aircraft data from OpenSky Network and ADS-B Exchange — the same feeds used by anyone serious about flight tracking. Nothing is invented. Nothing is filtered. If a plane is in the sky and the providers can see it, you can log it. If you want to verify how the product works, the entire codebase is on GitHub for public inspection.</p>
-      <p>There are no accounts. No email collection. No analytics SDKs. The viewport you're looking at is the query, your photos and note are the payload, and a UUID in your browser's localStorage is the only thing that links logs back to "you." That's the whole identity model. Clear your storage and you're a new person.</p>
+      <p>There are no accounts. No email collection. No third-party analytics. The viewport you're looking at is the query, your photos and note are the payload, and a UUID in your browser's localStorage is the only thing that links logs back to "you." That's the whole identity model. Clear your storage and you're a new person.</p>
       <p>The goal is small and concrete: make it trivially easy to log what's overhead, and impossible to delete the record without an admin actually deleting it. The community decides what's worth logging.</p>
     </div>
   </div>
@@ -79,7 +79,7 @@
       </div>
       <div class="callout">
         <h3><span class="dot"></span>No tracking, no upsell</h3>
-        <p>Free. No ads. No premium tier. No analytics pixels. No newsletter you didn't ask to be on. Just the tool.</p>
+        <p>Free. No ads. No premium tier. No third-party analytics. No newsletter you didn't ask to be on. Just the tool.</p>
       </div>
     </div>
   </div>
@@ -166,7 +166,7 @@
           <img src="assets/logo-mark.svg" alt="" width="28" height="28" style="border-radius: 8px;" />
           Chemtrail Tracker
         </a>
-        <p style="color: rgba(255,255,255,.55); font-size: 13px; line-height: 1.6; margin: 8px 0 0; max-width: 320px;">A map-first, open-source tool for logging the aircraft overhead. No accounts. No analytics. Just the receipts.</p>
+        <p style="color: rgba(255,255,255,.55); font-size: 13px; line-height: 1.6; margin: 8px 0 0; max-width: 320px;">A map-first, open-source tool for logging the aircraft overhead. No accounts. Self-hosted analytics only. Just the receipts.</p>
       </div>
       <div>
         <h5>Product</h5>
@@ -198,5 +198,6 @@
   </div>
 </footer>
 
+<script defer src="https://stats.geckopico.com/script.js" data-website-id="REPLACE-WITH-UMAMI-WEBSITE-ID"></script>
 </body>
 </html>
